@@ -2,11 +2,11 @@ from enum import Enum, auto
 
 class Token(Enum):
 
-    def __generate_next_value__(name, start, count, last_values):
+    def _generate_next_value_(name, start, count, last_values):
         return name
 
     def __str__(self):
-        return lower(str(self.value))
+        return str(self.value).lower()
 
 
 class SQLKeyword(Token):
@@ -134,13 +134,16 @@ class SymbolType(Enum):
 
 class Symbol(object):
     
-    def __init__(self, name: str, token: Token, symbolType: SymbolType):
+    def __init__(self, name: str, symbolType: SymbolType):
         self.name = name
         self.length = len(name)
-        self.token = token
         self.type = symbolType
     
+    def __str__(self):
+        return '<Symbol: ' + self.name + ', Length: '+ str(self.length) + ', Type: '+ self.type +'>'
 
+    def __repr__(self):
+        return self.__str__()
 
 
 

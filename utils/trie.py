@@ -1,33 +1,43 @@
 class Trie:
-    def __init__(self, terminate_symbol = None):
+    def __init__(self):
         self._d = {}
-        if terminate_symbol:
-            self.terminate_symbol = terminate_symbol
-        else:
-            self.terminate_symbol = '!'
+        self.terminate_symbols = []
     
-    def insertList(self, words):
-        words = sorted(words)
+    def __str__(self):
+        return str(self._d)
+    
+    def insertList(self, words, terminate_symbol = '!'):
+        if not terminate_symbol in self.terminate_symbols:
+            self.terminate_symbols.append(terminate_symbol)
         for word in words:
-            self.insert(word)        
+            self.insert(word, terminate_symbol)        
     
-    def insert(self, word):
+    def insert(self, word, terminate_symbol = '!'):
+        word = word.lower()
+        if not terminate_symbol in self.terminate_symbols:
+            self.terminate_symbols.append(terminate_symbol)
         cur = self._d
         for w in word:
             if w not in cur:
                 cur[w] = {}
             cur = cur[w]
-        cur[self.terminate_symbol] == 1
+        cur[terminate_symbol] = 1
     
     def search(self, word):
+        word = word.lower()
         cur = self._d
         for w in word:
             if w not in cur:
                 return False
             cur = cur[w]
-        return self.terminate_symbol in cur
+        for i in self.terminate_symbols:
+            if i in cur:
+                return i
+        else:
+            return False
 
     def startsWith(self, prefix):
+        prefix = prefix.lower()
         cur = self._d
         for w in prefix:
             if w not in cur:
