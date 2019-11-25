@@ -4,6 +4,8 @@ from utils.utils import Param
 from myparser import Parser
 from worker import Worker
 
+import pickle
+
 class Core:
 
     def __init__(self):
@@ -15,6 +17,7 @@ class Core:
         self.tables = []
         self._run()
     
+    # W
     def _constructTrie(self):
         trie = Trie()
         # Written in multiple lines instead of loop to prevent dealing with hashing

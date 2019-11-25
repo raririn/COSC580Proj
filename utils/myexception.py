@@ -7,3 +7,7 @@ class PrintException:
     @staticmethod
     def keyError():
         print('Key not in dist!')
+
+    @staticmethod
+    def typeError():
+        print('')
