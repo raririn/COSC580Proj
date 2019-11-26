@@ -13,7 +13,11 @@ class Parser:
             if word in Param.punctuation:
                 terminate  = 'Delimiter'
             else:
-                terminate = 'Identifier'
+                try:
+                    int(word)
+                    terminate = 'Value'
+                except:
+                    terminate = 'Identifier'
         return Symbol(word, terminate)
 
     def _split(self, string):

@@ -1,13 +1,11 @@
 from utils.myexception import PrintException
+import pickle
 
 class Table:
     def __init__(self, name, col_names = [], dtype = [], primary_key = None, tuples = {}):
         # WARNING: The constructor doesn't check the dimensions,
         # assuming everything passed in is correct!
-        if isinstance(name, str):
-            self.name = name
-        else:
-            raise Exception('')
+        self.name = name
         self._col_names = col_names
         self._dtype = dtype
         self._tuples = tuples
@@ -30,7 +28,22 @@ class Table:
         else:
             self._primary_key = None
     
+    @classmethod
+    def createTable(cls, name: str, col_names: list, dtype: list, primary_key = None, tuples = {}):
+        if (not name) or (not col_names) or (not dtype):
+            return -1
+        # Dimension check
+        if len(col_names) != len(dtype):
+            return -1
+        # Type check
+        if not isinstance(name, str) or not isinstance(col_names, list) or not isinstance(dtype, list):
+            return -1
+        return cls(name, col_names, dtype, primary_key, tuples)
     
+    def dump(self):
+        # TODO:
+        pass
+
     def _getNewName(self):
         for i in range(1000000000):
             yield str(i)
@@ -41,13 +54,6 @@ class Table:
         print(self._col_names)
         for k, v in self._tuples.items():
             print(k, v)
-    
-    @classmethod
-    def newTable(cls, col_names, tuples, check = False):
-        if check:
-            # TODO:
-            pass
-        return cls(col_names = col_names, primary_key = None, tuples = tuples)
 
     @property
     def defaultkey(self):
@@ -73,6 +79,7 @@ class Table:
             elif cur_dtype == 'double' or cur_dtype == 'float':
                 if not isinstance(newTuple[i], float):
                     return False
+            # TODO: Handle Date: possibly via datetime.date
         return True
 
     #W
@@ -94,9 +101,21 @@ class Table:
             self._tuples[self.defaultkey] = t
         return 0
 
-    def _select(self, col_names):
-        
-        pass
+    def _select(self, col_names, alias = None):
+        # TODO: deal with primary key issues
+        try:
+            locs = [self._col_names.index(i) for i in col_names]
+        except:
+            PrintException.keyError()
+            return -1
+        ret_dtype = [self._dtype[i] for i in locs]
+        ret = {}
+        for k, v in self._tuples.items():
+            ret[k] = tuple([v[i] for i in locs])
+        if alias:
+            return Table(name = alias, col_names = col_names, dtype = ret_dtype, primary_key = None, tuples = ret)
+        else:
+            return Table(name = self._getNewName(), col_names = col_names, dtype = ret_dtype, primary_key = None, tuples = ret)
 
     def _project(self, condition, alias = None):
         '''

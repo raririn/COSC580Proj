@@ -116,7 +116,7 @@ class SQLOperator(Token):
     # Operators
     LT = '<'
     LE = '<='
-    EQ = '=='
+    EQ = '='
     NE = '!='
     GT = '>'
     GE = '>='
