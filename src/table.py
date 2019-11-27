@@ -137,6 +137,7 @@ class Table:
         pass
 
     def _update(self):
+        #TODO:
         pass
 
     def _select(self, col_names, func = None, alias = None, orderby = None, groupby = None):
@@ -238,6 +239,8 @@ class Table:
         e.g. Join A and B on key A.a = B.b
         Condition ~ ['a', '=', 'b']
         Note that the order matters.
+
+        *: Assign new keys to the joined table.
         '''
         if mode == self.JOIN_NESTEDLOOP:
             count = 0

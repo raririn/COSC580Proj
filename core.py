@@ -38,10 +38,10 @@ class Core:
     def _run(self):
         pass
 
-    def _select(self):
+    def _select(self, table_name: str, col_names: list, func = None, alias = None, orderby = None, groupby = None):
         pass
 
-    def _project(self):
+    def _project(self, table_name: str, conditions: list, alias = None):
         pass
 
     def _create_table(self, name: str, col_names: list, dtype: list, primary_key = None, foreign_key = None) -> int:
@@ -59,20 +59,21 @@ class Core:
 
         If not specified, the on_delete parameter is set to Table.ONDELETE_NOACTION
         '''
-        if table_name in self.tables:
+        if name in self.tables:
             PrintException.keyError()
             return -1
         if foreign_key and not foreign_key[3]:
             foreign_key = [foreign_key[0], foreign_key[1], foreign_key[2], Table.ONDELETE_NOACTION]
         if foreign_key:
             target = foreign_key[1]
-            target._addForeignKeyConstraint(foreign_key)
+            if target in self.tables:
+                self.tables[target]._addForeignKeyConstraint(foreign_key)
+            else:
+                PrintException.keyError()
+                return -1
 
-        try:
-            self.table[name] = Table.createTable(col_names = col_names, dtype = dtype, primary_key = primary_key)
-            return 0
-        except:
-            return -1
+        self.tables[name] = Table.createTable(col_names = col_names, dtype = dtype, primary_key = primary_key)
+        return 0
         
         
 
