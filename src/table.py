@@ -17,10 +17,12 @@ class Table:
     def __init__(self, col_names = [], dtype = [], primary_key = None, tuples = {}):
         # WARNING: The constructor doesn't check the dimensions,
         # assuming everything passed in is correct!
-        self.name = name
         self._col_names = col_names
         self._dtype = dtype
 
+        # TODO:
+        # Should we keep a name field inside tha table instance?
+        
         # TODO: Consider constructing a new table from tuples. How to deal with keys?
         # 1. Keep the original keys (how to deal with collision?)
         # 2. Assign new keys anyway
@@ -40,7 +42,7 @@ class Table:
         e.g. TABLE A 
         FOREIGN KEY (a) REFERENCES B(b) ON DELETE CASCADE
 
-        Then b._foreign_key = [['b', 'A', 'a', Table.ONDELETE_CASCADE]]
+        Then b._foreign_key = [['b', 'A', 'a', self.ONDELETE_CASCADE]]
         '''
         self._index = None
         if primary_key:
@@ -71,9 +73,8 @@ class Table:
             yield str(i)
 
     def printall(self):
-        print('Table %s' % self.name)
         print('Primary key: ' + str(self._primary_key))
-        print(self._col_names)
+        print([self._col_names[i] + ': ' + self._dtype[i] for i in range(self.col)])
         for k, v in self._tuples.items():
             print(k, v)
 
@@ -130,7 +131,9 @@ class Table:
             self._tuples[self.defaultkey] = t
         return 0
     
-    def _delete(self):
+    def _delete(self, condition):
+        col, operator, val = condition[0], condition[1], condition[2]
+        #TODO:
         pass
 
     def _update(self):
@@ -148,6 +151,9 @@ class Table:
         ret = {}
         for k, v in self._tuples.items():
             ret[k] = tuple([v[i] for i in locs])
+        
+        if not func:
+            func = ''
 
         if func.lower() == 'distinct':
             s = set()
@@ -226,14 +232,14 @@ class Table:
                     ret[k] = v                
         return Table(col_name, ret_dtype, None, ret)
 
-    def _join(self, other, condition, mode = Table.JOIN_NESTEDLOOP):
+    def _join(self, other, condition, mode = 1):
         '''
         Condition: | col_A | operator | col_B |
         e.g. Join A and B on key A.a = B.b
         Condition ~ ['a', '=', 'b']
         Note that the order matters.
         '''
-        if mode == Table.JOIN_NESTEDLOOP:
+        if mode == self.JOIN_NESTEDLOOP:
             count = 0
             ret = {}
             loc1 = self._col_names.index(condition[0])
@@ -261,7 +267,10 @@ class Table:
                         if v1[loc1] < v2[loc2]:
                             ret[count] = v1 + v2
                             count += 1   
-            return ret
+            # TODO: Consider primary key
+            ret_col_name = self._col_names + other._col_names
+            ret_dtype = self._dtype + other._dtype
+            return Table(ret_col_name, ret_dtype, None, ret)
         elif mode == JOIN_MERGEJOIN:
             pass
         else:
