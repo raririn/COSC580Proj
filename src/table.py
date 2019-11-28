@@ -22,7 +22,7 @@ class Table:
 
         # TODO:
         # Should we keep a name field inside tha table instance?
-        
+
         # TODO: Consider constructing a new table from tuples. How to deal with keys?
         # 1. Keep the original keys (how to deal with collision?)
         # 2. Assign new keys anyway
@@ -63,10 +63,6 @@ class Table:
         if not isinstance(col_names, list) or not isinstance(dtype, list):
             return -1
         return cls(col_names, dtype, primary_key, tuples)
-    
-    def dump(self):
-        # TODO:
-        pass
 
     def _getNewName(self):
         for i in range(1000000000):
@@ -131,16 +127,72 @@ class Table:
             self._tuples[self.defaultkey] = t
         return 0
     
-    def _delete(self, condition):
-        col, operator, val = condition[0], condition[1], condition[2]
-        #TODO:
-        pass
+    def _delete(self, conditions: int) -> int:
+        col, operator, val = conditions[0], conditions[1], conditions[2]
+        try:
+            loc = self._col_names.index(col_name)
+        except:
+            PrintException.keyError()
+            return -1
+        del_list = []
+        if operator == '>':
+            for k, v in self._tuples.items():
+                if v[loc] > val:
+                    del_list.append(k)
+        elif operator == '=':
+            for k, v in self._tuples.items():
+                if v[loc] == val:
+                    del_list.append(k)          
+        elif operator == '>=':
+            for k, v in self._tuples.items():
+                if v[loc] >= val:
+                    del_list.append(k) 
+        elif operator == '<':
+            for k, v in self._tuples.items():
+                if v[loc] < val:
+                    del_list.append(k)
+        elif operator == '<=':
+            for k, v in self._tuples.items():
+                if v[loc] <= val:
+                    del_list.append(k)  
+        for i in del_list:
+            self._tuples.pop(i)
+        return 0
 
-    def _update(self):
-        #TODO:
-        pass
+    def _update(self, col_val_pairs: list, conditions: list) -> int:
+        locs = [self._col_names.index(i) for i, _ in col_val_pairs]
+        vals = [_, i for i in col_val_pairs]
+        if operator == '>':
+            for k, v in self._tuples.items():
+                if v[loc] > val:
+                    for x in len(locs):
+                        v[locs[x]] = vals[x]
+        elif operator == '=':
+            for k, v in self._tuples.items():
+                if v[loc] == val:
+                    for x in len(locs):
+                        v[locs[x]] = vals[x]       
+        elif operator == '>=':
+            for k, v in self._tuples.items():
+                if v[loc] >= val:
+                    for x in len(locs):
+                        v[locs[x]] = vals[x]
+        elif operator == '<':
+            for k, v in self._tuples.items():
+                if v[loc] < val:
+                    for x in len(locs):
+                        v[locs[x]] = vals[x]
+        elif operator == '<=':
+            for k, v in self._tuples.items():
+                if v[loc] <= val:
+                    for x in len(locs):
+                        v[locs[x]] = vals[x]
+        return 0
 
     def _select(self, col_names, func = None, alias = None, orderby = None, groupby = None):
+        '''
+        orderby = ['col', desc]
+        '''
         # TODO: deal with primary key issues
         # Does the newly created table need to have primary keys?
         try:
@@ -188,7 +240,18 @@ class Table:
         # TODO: How to deal with order by when the table is hashmap (i.e. unordered?)
         # Note that group by only exists with certain functions!
         if orderby:
-            pass
+            loc, desc_flag = self._col_names.index(orderby[0]), orderby[1]
+            if desc_flag:
+                vals = sorted([v for _, v in ret.items()], key = lambda x: x[loc], reverse = True)
+            else:
+                vals = sorted([v for _, v in ret.items()], key = lambda x: x[loc], reverse = False)
+            new_ret = {}
+            count = 0
+            for i in range(len(vals)):
+                new_ret[count] = vals[i]
+                count += 1
+            ret = new_ret
+
         if groupby:
             pass         
 
@@ -278,3 +341,6 @@ class Table:
             pass
         else:
             return -1
+        
+    def _index_join(self):
+        pass

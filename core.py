@@ -10,6 +10,8 @@ import pickle
 
 class Core:
 
+    DUMP_DUMPALL = 0
+
     def __init__(self):
         self.terminate_map = {}
         for k, v in Param.terminate_pair.items():
@@ -34,6 +36,26 @@ class Core:
         trie.insertList(tuple(map(lambda x: x.lower(), [str(member) for name, member in lh.SQLDataType.__members__.items()])), self.terminate_map['DataType'])
         trie.insertList(tuple(map(lambda x: x.lower(), [str(member) for name, member in lh.SQLOperator.__members__.items()])), self.terminate_map['Operator'])
         return trie
+    
+    def _dump_table(self, table_name = 0, file_path: str):
+        if isinstance(table_name, str):
+            table_name = [table_name]
+
+        f = open(file_path, 'wb')
+        if table_name == Core.DUMP_DUMPALL:
+            pickle.dump(self.tables, f)
+            f.close()
+            return 0
+        else:
+            new_tableL = {}
+            for i in table_name:
+                new_tableL[i] = self.tables[i]
+            pickle.dump(new_tableL, f)
+            f.close()
+            return 0
+    
+    def _load_table(self, file_path: str):
+        pass
 
     def _run(self):
         pass
