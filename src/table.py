@@ -2,6 +2,7 @@ from utils.myexception import PrintException
 
 import pickle
 from datetime import datetime
+import time
 
 class Table:
 
@@ -15,9 +16,10 @@ class Table:
     ONDELETE_NOACTION = 3
     ONDELETE_RESTRICT = 4
 
-    def __init__(self, col_names = [], dtype = [], primary_key = None, tuples = {}):
+    def __init__(self, name:str, col_names = [], dtype = [], primary_key = None, tuples = {}):
         # WARNING: The constructor doesn't check the dimensions,
         # assuming everything passed in is correct!
+        self.name = name
         self._col_names = col_names
         self._dtype = dtype
 
@@ -54,7 +56,7 @@ class Table:
             self._primary_key = None
     
     @classmethod
-    def createTable(cls, col_names: list, dtype: list, primary_key = None, tuples = {}):
+    def createTable(cls, name: str, col_names: list, dtype: list, primary_key = None, tuples = {}):
         if (not col_names) or (not dtype):
             return -1
         # Dimension check
@@ -63,17 +65,19 @@ class Table:
         # Type check
         if not isinstance(col_names, list) or not isinstance(dtype, list):
             return -1
-        return cls(col_names, dtype, primary_key, tuples)
+        return cls(name, col_names, dtype, primary_key, tuples)
 
     def _getNewName(self):
         for i in range(1000000000):
             yield str(i)
 
     def printall(self):
+        print('Table <%s>' % self.name)
         print('Primary key: ' + str(self._primary_key))
         print([self._col_names[i] + ': ' + self._dtype[i] for i in range(self.col)])
         for k, v in self._tuples.items():
             print(k, v)
+    
 
     @property
     def defaultkey(self):
@@ -196,6 +200,7 @@ class Table:
         WARNING: the column that placed an aggregate function on should also be included in <col_names>
 
         func = None / ['avg', 'colA']
+        distinct = ['colA', 'colB', ...]
         orderby = [['colA', 'colB', ...], desc]
         groupby = ['colA', 'colB', ...]
         '''
@@ -287,13 +292,14 @@ class Table:
                 ret = new_ret 
 
         if distinct:
+            distinct_locs = [self._col_names.index(i) for i in distinct]
             s = set()
             new_ret = {}
             for k, v in ret.items():
-                if v in s:
+                if tuple([v[i] for i in distinct_locs]) in s:
                     pass
                 else:
-                    new_ret[k] = v
+                    new_ret[k] = tuple([v[i] for i in distinct_locs])
                     s.add(v)
             ret = new_ret
 
@@ -322,7 +328,7 @@ class Table:
             new_ret[lastkey] = ret[lastkey]
             ret = new_ret
 
-        return Table(col_names = col_names, dtype = ret_dtype, primary_key = None, tuples = ret)
+        return Table(name = time.time(), col_names = col_names, dtype = ret_dtype, primary_key = None, tuples = ret)
 
     def _project(self, condition, alias = None):
         '''
@@ -339,7 +345,7 @@ class Table:
         except:
             PrintException.keyError()
             return -1
-        ret_dtype = self._dtype[loc]
+        ret_dtype = self._dtype
         ret = {}
         if operator == '>':
             for k, v in self._tuples.items():
@@ -361,7 +367,7 @@ class Table:
             for k, v in self._tuples.items():
                 if v[loc] <= val:
                     ret[k] = v                
-        return Table(col_name, ret_dtype, None, ret)
+        return Table(time.time(), col_name, ret_dtype, None, ret)
 
     def _join(self, other, condition, mode = 1):
         '''
@@ -400,9 +406,9 @@ class Table:
                         if v1[loc1] < v2[loc2]:
                             ret[count] = v1 + v2
                             count += 1
-            ret_col_name = self._col_names + other._col_names
+            ret_col_name = list(map(lambda x: self.name + '.' + x, self._col_names)) + list(map(lambda x: other.name + '.' + x, other._col_names))
             ret_dtype = self._dtype + other._dtype
-            return Table(ret_col_name, ret_dtype, None, ret)
+            return Table(time.time(), ret_col_name, ret_dtype, None, ret)
         elif mode == JOIN_MERGEJOIN:
             pass
         else:
