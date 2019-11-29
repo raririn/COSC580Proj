@@ -7,6 +7,7 @@ class Table:
 
     JOIN_MERGEJOIN = 0
     JOIN_NESTEDLOOP = 1
+    JOIN_EXTERNALMERGE = 2
 
     ONDELETE_SETNULL = 0
     ONDELETE_CASCADE = 1
@@ -128,6 +129,7 @@ class Table:
         return 0
     
     def _delete(self, conditions: int) -> int:
+        # TODO: Handle foreign keys
         col, operator, val = conditions[0], conditions[1], conditions[2]
         try:
             loc = self._col_names.index(col_name)
@@ -161,7 +163,7 @@ class Table:
 
     def _update(self, col_val_pairs: list, conditions: list) -> int:
         locs = [self._col_names.index(i) for i, _ in col_val_pairs]
-        vals = [_, i for i in col_val_pairs]
+        vals = [i for _, i in col_val_pairs]
         if operator == '>':
             for k, v in self._tuples.items():
                 if v[loc] > val:
@@ -189,12 +191,14 @@ class Table:
                         v[locs[x]] = vals[x]
         return 0
 
-    def _select(self, col_names, func = None, alias = None, orderby = None, groupby = None):
+    def _select(self, col_names, distinct = None, aggr_func = None, alias = None, orderby = None, groupby = None):
         '''
-        orderby = ['col', desc]
+        WARNING: the column that placed an aggregate function on should also be included in <col_names>
+
+        func = None / ['avg', 'colA']
+        orderby = [['colA', 'colB', ...], desc]
+        groupby = ['colA', 'colB', ...]
         '''
-        # TODO: deal with primary key issues
-        # Does the newly created table need to have primary keys?
         try:
             locs = [self._col_names.index(i) for i in col_names]
         except:
@@ -204,11 +208,78 @@ class Table:
         ret = {}
         for k, v in self._tuples.items():
             ret[k] = tuple([v[i] for i in locs])
-        
-        if not func:
-            func = ''
 
-        if func.lower() == 'distinct':
+
+        
+        if not aggr_func:
+            func = ['', '']
+        else:
+            func = aggr_func
+
+        if groupby:
+            if func[0].lower() == 'avg':
+                avg_loc = self._col_names.index(func[1])
+                groupby_locs = [self._col_names.index(i) for i in groupby]
+                new_ret = {}
+                count_d = {}
+                for k, v in ret.items():
+                    new_ret[tuple([v[i] for i in groupby_locs])] = new_ret.get(tuple([v[i] for i in groupby_locs]), 0) + v[avg_loc]
+                    count_d[tuple([v[i] for i in groupby_locs])] = count_d.get(tuple([v[i] for i in groupby_locs]), 0) + 1
+                for k, _ in new_ret.items():
+                    new_ret[k] = new_ret[k] / count_d[k]
+                col_names = ['AVG(' + str(func[1]) +')']
+                ret_dtype = ['float']
+                ret = new_ret
+            elif func[0].lower() == 'count':
+                avg_loc = self._col_names.index(func[1])
+                groupby_locs = [self._col_names.index(i) for i in groupby]
+                new_ret = {}
+                for k, v in ret.items():
+                    new_ret[tuple([v[i] for i in groupby_locs])] = new_ret.get(tuple([v[i] for i in groupby_locs]), 0) + 1
+                col_names = ['COUNT(' + str(func[1]) +')']
+                ret_dtype = ['int']
+                ret = new_ret
+            elif func[0].lower() == 'sum':
+                avg_loc = self._col_names.index(func[1])
+                groupby_locs = [self._col_names.index(i) for i in groupby]
+                for k, v in ret.items():
+                    new_ret[tuple([v[i] for i in groupby_locs])] = new_ret.get(tuple([v[i] for i in groupby_locs]), 0) + v[avg_loc]
+                col_names = ['SUM(' + str(func[1]) +')']
+                ret_dtype = ['float']
+                ret = new_ret
+        else:
+            if func[0].lower() == 'avg':
+                loc = self._col_names.index(func[1])
+                new_ret = {}
+                new_ret['AVG(' + str(func[1]) +')'] = 0
+                count = 0
+                for k, v in ret.items():
+                    new_ret['AVG(' + str(func[1]) +')'] += v[loc]
+                    count += 1
+                new_ret['AVG(' + str(func[1]) +')'] /= count
+                col_names = ['AVG(' + str(func[1]) +')']
+                ret_dtype = ['float']
+                ret = new_ret
+            elif func[0].lower() == 'count':
+                loc = self._col_names.index(func[1])
+                new_ret = {}
+                new_ret['COUNT(' + str(func[1]) +')'] = 0
+                for k, v in ret.items():
+                    new_ret['COUNT(' + str(func[1]) +')'] += 1
+                col_names = ['COUNT(' + str(func[1]) +')']
+                ret_dtype = ['int']
+                ret = new_ret            
+            elif func[0].lower() == 'sum':
+                loc = self._col_names.index(func[1])
+                new_ret = {}
+                new_ret['SUM(' + str(func[1]) +')'] = 0
+                for k, v in ret.items():
+                    new_ret['SUM(' + str(func[1]) +')'] += v[loc]
+                col_names = ['SUM(' + str(func[1]) +')']
+                ret_dtype = ['int']
+                ret = new_ret 
+
+        if distinct:
             s = set()
             new_ret = {}
             for k, v in ret.items():
@@ -218,33 +289,14 @@ class Table:
                     new_ret[k] = v
                     s.add(v)
             ret = new_ret
-        elif func.lower() == 'average':
-            new_ret = {}
-            _sum = 0
-            for k, v in ret.items():
-                _sum += 1
-            new_ret[0] = _sum / len(ret.items())
-            ret = new_ret
-        elif func.lower() == 'sum':
-            new_ret = {}
-            _sum = 0
-            for k, v in ret.items():
-                _sum += 1
-            new_ret[0] = _sum
-            ret = new_ret   
-        elif func.lower() == 'count':
-            new_ret = {}
-            new_ret[0] = len(ret.items())
-            ret = new_ret
 
-        # TODO: How to deal with order by when the table is hashmap (i.e. unordered?)
-        # Note that group by only exists with certain functions!
+        # Note that groupby is prior to orderby!
         if orderby:
-            loc, desc_flag = self._col_names.index(orderby[0]), orderby[1]
+            locs, desc_flag = [self._col_names.index(i) for i in orderby[0]], orderby[1]
             if desc_flag:
-                vals = sorted([v for _, v in ret.items()], key = lambda x: x[loc], reverse = True)
+                vals = sorted([v for _, v in ret.items()], key = lambda x: tuple([x[i] for i in locs]), reverse = True)
             else:
-                vals = sorted([v for _, v in ret.items()], key = lambda x: x[loc], reverse = False)
+                vals = sorted([v for _, v in ret.items()], key = lambda x: tuple([x[i] for i in locs]), reverse = False)
             new_ret = {}
             count = 0
             for i in range(len(vals)):
@@ -252,8 +304,16 @@ class Table:
                 count += 1
             ret = new_ret
 
-        if groupby:
-            pass         
+        if func[0].lower() == 'first':
+            firstkey = [k for k, _ in self._tuples.items()][0]
+            new_ret = {}
+            new_ret[firstkey] = ret[firstkey]
+            ret = new_ret
+        if func[0].lower() == 'last':
+            lastkey = [k for k, _ in self._tuples.items()][-1]
+            new_ret = {}
+            new_ret[lastkey] = ret[lastkey]
+            ret = new_ret
 
         return Table(col_names = col_names, dtype = ret_dtype, primary_key = None, tuples = ret)
 
@@ -332,8 +392,7 @@ class Table:
                     elif operator == '<':
                         if v1[loc1] < v2[loc2]:
                             ret[count] = v1 + v2
-                            count += 1   
-            # TODO: Consider primary key
+                            count += 1
             ret_col_name = self._col_names + other._col_names
             ret_dtype = self._dtype + other._dtype
             return Table(ret_col_name, ret_dtype, None, ret)

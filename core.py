@@ -37,7 +37,7 @@ class Core:
         trie.insertList(tuple(map(lambda x: x.lower(), [str(member) for name, member in lh.SQLOperator.__members__.items()])), self.terminate_map['Operator'])
         return trie
     
-    def _dump_table(self, table_name = 0, file_path: str):
+    def _dump_table(self, file_path: str, table_name = 0):
         if isinstance(table_name, str):
             table_name = [table_name]
 
