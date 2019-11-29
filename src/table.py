@@ -16,10 +16,16 @@ class Table:
     ONDELETE_NOACTION = 3
     ONDELETE_RESTRICT = 4
 
-    def __init__(self, name:str, col_names = [], dtype = [], primary_key = None, tuples = {}):
+    def __init__(self, name: str, col_names = None, dtype = None, primary_key = None, tuples = None):
         # WARNING: The constructor doesn't check the dimensions,
         # assuming everything passed in is correct!
         self.name = name
+        if not col_names:
+            col_names = []
+        if not dtype:
+            dtype = []
+        if not tuples:
+            tuples = {}
         self._col_names = col_names
         self._dtype = dtype
 
@@ -56,7 +62,7 @@ class Table:
             self._primary_key = None
     
     @classmethod
-    def createTable(cls, name: str, col_names: list, dtype: list, primary_key = None, tuples = {}):
+    def createTable(cls, name: str, col_names: list, dtype: list, primary_key = None, tuples = None):
         if (not col_names) or (not dtype):
             return -1
         # Dimension check

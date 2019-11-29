@@ -94,7 +94,7 @@ class Core:
                 PrintException.keyError()
                 return -1
 
-        self.tables[name] = Table.createTable(col_names = col_names, dtype = dtype, primary_key = primary_key)
+        self.tables[name] = Table.createTable(name, col_names = col_names, dtype = dtype, primary_key = primary_key)
         return 0
         
         
