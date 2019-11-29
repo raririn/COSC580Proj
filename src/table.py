@@ -242,10 +242,17 @@ class Table:
             elif func[0].lower() == 'sum':
                 avg_loc = self._col_names.index(func[1])
                 groupby_locs = [self._col_names.index(i) for i in groupby]
+                new_ret = {}
                 for k, v in ret.items():
                     new_ret[tuple([v[i] for i in groupby_locs])] = new_ret.get(tuple([v[i] for i in groupby_locs]), 0) + v[avg_loc]
                 col_names = ['SUM(' + str(func[1]) +')']
                 ret_dtype = ['float']
+                ret = new_ret
+            else:
+                groupby_locs = [self._col_names.index(i) for i in groupby]
+                new_ret = {}
+                for k, v in ret.items():
+                    new_ret[tuple([v[i] for i in groupby_locs])] = v
                 ret = new_ret
         else:
             if func[0].lower() == 'avg':
