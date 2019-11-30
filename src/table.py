@@ -211,11 +211,16 @@ class Table:
         groupby = ['colA', 'colB', ...]
         '''
         try:
-            locs = [self._col_names.index(i) for i in col_names]
+            ori_locs = [self._col_names.index(i) for i in col_names]
+            if groupby:
+                locs = [self._col_names.index(i) for i in set(groupby + col_names)]
+            else:
+                locs = ori_locs
         except:
             PrintException.keyError()
             return -1
         ret_dtype = [self._dtype[i] for i in locs]
+        
         ret = {}
         for k, v in self._tuples.items():
             ret[k] = tuple([v[i] for i in locs])
@@ -333,6 +338,10 @@ class Table:
             new_ret = {}
             new_ret[lastkey] = ret[lastkey]
             ret = new_ret
+        
+        if groupby:
+            for k, v in ret.items():
+                ret[k] = tuple([v[i] for i in ori_locs])
 
         return Table(name = time.time(), col_names = col_names, dtype = ret_dtype, primary_key = None, tuples = ret)
 
