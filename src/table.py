@@ -10,6 +10,11 @@ class Table:
     JOIN_NESTEDLOOP = 1
     JOIN_EXTERNALMERGE = 2
 
+    OVERRIDE_COLNAME_NONE = 0
+    OVERRIDE_COLNAME_FIRST = 1
+    OVERRIDE_COLNAME_LAST = 2
+    OVERRIDE_COLNAME_BOTH = 3
+
     ONDELETE_SETNULL = 0
     ONDELETE_CASCADE = 1
     ONDELETE_SETDEFAULT = 2
@@ -384,7 +389,7 @@ class Table:
                     ret[k] = v                
         return Table(time.time(), col_name, ret_dtype, None, ret)
 
-    def _join(self, other, condition, mode = 1):
+    def _join(self, other, condition, mode = 1, override_colname = 0):
         '''
         Condition: | col_A | operator | col_B |
         e.g. Join A and B on key A.a = B.b
@@ -421,13 +426,36 @@ class Table:
                         if v1[loc1] < v2[loc2]:
                             ret[count] = v1 + v2
                             count += 1
-            ret_col_name = list(map(lambda x: self.name + '.' + x, self._col_names)) + list(map(lambda x: other.name + '.' + x, other._col_names))
+            if override_colname == Table.OVERRIDE_COLNAME_NONE:
+                ret_col_name = self._col_names + other._col_names
+            elif override_colname == Table.OVERRIDE_COLNAME_FIRST:
+                ret_col_name = list(map(lambda x: self.name + '.' + x, self._col_names)) + other._col_names
+            elif override_colname == Table.OVERRIDE_COLNAME_LAST:
+                ret_col_name = self._col_names + list(map(lambda x: other.name + '.' + x, other._col_names))
+            elif override_colname == Table.OVERRIDE_COLNAME_BOTH:
+                ret_col_name = list(map(lambda x: self.name + '.' + x, self._col_names)) + list(map(lambda x: other.name + '.' + x, other._col_names))
             ret_dtype = self._dtype + other._dtype
             return Table(time.time(), ret_col_name, ret_dtype, None, ret)
         elif mode == JOIN_MERGEJOIN:
             pass
         else:
             return -1
+        
+    def _union(self, other):
+        s = set()
+        ret = {}
+        count = 0
+        ret_col_name = self._col_names
+        ret_dtype = self._dtype
+        for _, v in self._tuples.items():
+            if not v in s:
+                ret[count] = v
+                count += 1
+        for _, v in other._tuples.items():
+            if not v in s:
+                ret[count] = v
+                count += 1
+        return Table(time.time(), ret_col_name, ret_dtype, None, ret)        
         
     def _index_join(self):
         pass
