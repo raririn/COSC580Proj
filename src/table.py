@@ -582,8 +582,22 @@ class Table:
             loc2 = other._col_index[condition[2]]
             operator = condition[1]
             # Sort
-            t1_tuples = sorted([v for _, v in self._tuples.items()], key = lambda x: x[loc1])
-            t2_tuples = sorted([v for _, v in self._tuples.items()], key = lambda x: x[loc2])
+            if codition[0] in self._indexed_cols:
+                lst = self._index[codition[0]].to_list()
+                t1_tuples = []
+                for node in lst:
+                    for k in node.key:
+                        t1_tuples.append(self._tuples[k])
+            else:
+                t1_tuples = sorted([v for _, v in self._tuples.items()], key = lambda x: x[loc1])
+            if codition[2] in other._indexed_cols:
+                lst = other._index[codition[0]].to_list()
+                t2_tuples = []
+                for node in lst:
+                    for k in node.key:
+                        t2_tuples.append(other._tuples[k])
+            else:
+                t2_tuples = sorted([v for _, v in other._tuples.items()], key = lambda x: x[loc2])
             # Merge
             i, j = 0, 0
             count = 0
