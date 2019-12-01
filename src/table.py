@@ -4,9 +4,12 @@ from utils.myexception import PrintException
 import pickle
 from datetime import datetime
 import time
+import math
+import gc
 
 class Table:
 
+    JOIN_AUTO = -1
     JOIN_MERGEJOIN = 0
     JOIN_NESTEDLOOP = 1
     JOIN_EXTERNALMERGE = 2
@@ -109,6 +112,17 @@ class Table:
             for j in self._tuples[i]:
                 print(j, end = ' ')
             print('\n')
+    
+    def head(self):
+        print('Table <%s>' % self.name)
+        print('%d columns, %d rows' % (len(self._col_names), len(self._tuples)))
+        print([self._col_names[i] + ': ' + self._dtype[i] for i in range(self.col)])
+        count = 0
+        for k, v in self._tuples.items():
+            print(k, v)
+            count += 1
+            if count == 5:
+                break        
 
 
     
@@ -503,7 +517,7 @@ class Table:
                     ret[k] = v                
         return Table(str(time.time()), self._col_names, ret_dtype, None, ret)
 
-    def _join(self, other, condition, mode = 1, override_colname = 0):
+    def _join(self, other, condition, mode = -1, override_colname = 0):
         '''
         Condition: | col_A | operator | col_B |
         e.g. Join A and B on key A.a = B.b
@@ -512,6 +526,16 @@ class Table:
 
         *: Assign new keys to the joined table.
         '''
+        a = len(self._tuples)
+        b = len(self._tuples)
+        if mode == self.JOIN_AUTO:
+            if a * b > 10**7:
+                mode = self.JOIN_EXTERNALMERGE
+            elif a * b >= math.log(a) + math.log(b) + a + a:
+                mode = self.JOIN_MERGEJOIN
+            else:
+                mode = self.JOIN_NESTEDLOOP
+
         if mode == self.JOIN_NESTEDLOOP:
             count = 0
             ret = {}
@@ -551,7 +575,79 @@ class Table:
             ret_dtype = self._dtype + other._dtype
             return Table(str(time.time()), ret_col_name, ret_dtype, None, ret)
         elif mode == self.JOIN_MERGEJOIN:
-            pass
+            #print('using merge join')
+            count = 0
+            ret = {}
+            loc1 = self._col_index[condition[0]]
+            loc2 = other._col_index[condition[2]]
+            operator = condition[1]
+            # Sort
+            t1_tuples = sorted([v for _, v in self._tuples.items()], key = lambda x: x[loc1])
+            t2_tuples = sorted([v for _, v in self._tuples.items()], key = lambda x: x[loc2])
+            # Merge
+            i, j = 0, 0
+            count = 0
+            if operator == '=':
+                while i < len(t1_tuples) and j < len(t2_tuples):
+                    if t1_tuples[i][loc1] > t2_tuples[j][loc2]:
+                        j += 1
+                    elif t1_tuples[i][loc1] < t2_tuples[j][loc2]:
+                        i += 1
+                    else:
+                        ret[count] = t1_tuples[i] + t2_tuples[j]
+                        count += 1
+                        i += 1
+                        j += 1
+            elif operator == '>':
+                while i < len(t1_tuples) and j < len(t2_tuples):
+                    if t1_tuples[i][loc1] <= t2_tuples[j][loc2]:
+                        i += 1
+                    else:
+                        for x in range(j):
+                            ret[count] = t1_tuples[i] + t2_tuples[x]
+                            count += 1
+                        i += 1
+                        j += 1
+            elif operator == '>=':
+                while i < len(t1_tuples) and j < len(t2_tuples):
+                    if t1_tuples[i][loc1] < t2_tuples[j][loc2]:
+                        i += 1
+                    else:
+                        for x in range(j):
+                            ret[count] = t1_tuples[i] + t2_tuples[x]
+                            count += 1
+                        i += 1
+                        j += 1               
+            elif operator == '<':
+                while i < len(t1_tuples) and j < len(t2_tuples):
+                    if t1_tuples[i][loc1] >= t2_tuples[j][loc2]:
+                        j += 1
+                    else:
+                        for x in range(i):
+                            ret[count] = t1_tuples[x] + t2_tuples[j]
+                            count += 1
+                        i += 1
+                        j += 1               
+            elif operator == '<=':
+                while i < len(t1_tuples) and j < len(t2_tuples):
+                    if t1_tuples[i][loc1] > t2_tuples[j][loc2]:
+                        j += 1
+                    else:
+                        for x in range(i):
+                            ret[count] = t1_tuples[x] + t2_tuples[j]
+                            count += 1
+                        i += 1
+                        j += 1  
+            if override_colname == Table.OVERRIDE_COLNAME_NONE:
+                ret_col_name = self._col_names + other._col_names
+            elif override_colname == Table.OVERRIDE_COLNAME_FIRST:
+                ret_col_name = list(map(lambda x: self.name + '.' + x, self._col_names)) + other._col_names
+            elif override_colname == Table.OVERRIDE_COLNAME_LAST:
+                ret_col_name = self._col_names + list(map(lambda x: other.name + '.' + x, other._col_names))
+            elif override_colname == Table.OVERRIDE_COLNAME_BOTH:
+                ret_col_name = list(map(lambda x: self.name + '.' + x, self._col_names)) + list(map(lambda x: other.name + '.' + x, other._col_names))
+            ret_dtype = self._dtype + other._dtype
+            return Table(str(time.time()), ret_col_name, ret_dtype, None, ret)
         else:
             return -1
         
