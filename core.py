@@ -164,8 +164,6 @@ class Core:
             #print(alias_table)
             #final_table.printall()
         
-        if final_table == -1:
-            raise Exception('')
         T, cur_table = final_table, final_table
         #Sample: i = ['AND', ['A1.a', '>', '3']]
         for i in conditions:
@@ -192,8 +190,7 @@ class Core:
         #cur_table.printall() 
         #print(columns, aggr_func)
 
-        if cur_table == -1:
-            raise Exception('')
+
         cur_table = cur_table._select(columns, distinct = distinct, aggr_func = aggr_func, orderby = orderby, groupby = groupby)
         reverse_columns_name_map = {}
         for k, v in d['columns'].items():
@@ -333,10 +330,33 @@ class Core:
         return 0
 
     def execute_create_index(self, d):
-        pass
+        '''
+        {
+            'name': index_name, 
+            'table': table_name, 
+            'columns': []
+        }
+        '''
+        if d['table'] in self.tables:
+            t = self.tables[d['table']]
+            for col in d['columns']:
+                t._create_index(d['name'], col)
+        else:
+            raise Exception('')
+        return 0
 
     def execute_drop_index(self, d):
-        pass
+        '''
+        {
+            'table': table_name, 
+            'index': index_name
+        }
+        '''
+        if d['table'] in self.tables:
+            self.tables[d['table']]._drop_index(d['index'])
+        else:
+            raise Exception('')
+        return 0
 
     def execute_create_table(self, d):
         '''
