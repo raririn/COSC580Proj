@@ -5,8 +5,8 @@ class PrintException:
         print('Dimension not match.')
     
     @staticmethod
-    def keyError():
-        print('Key not in dist!')
+    def keyError(in_func = ''):
+        print('Key not in dist! Exception in %s', in_func)
 
     @staticmethod
     def typeError():

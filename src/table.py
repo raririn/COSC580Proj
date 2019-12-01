@@ -61,7 +61,7 @@ class Table:
         e.g. TABLE A 
         FOREIGN KEY (a) REFERENCES B(b) ON DELETE CASCADE
 
-        Then b._foreign_key = [['b', 'A', 'a', self.ONDELETE_CASCADE]]
+        Then B._foreign_key = [['b', 'A', 'a', self.ONDELETE_CASCADE]]
         '''
         self._primary_key = []
         if not primary_key:
@@ -70,7 +70,7 @@ class Table:
             if key not in self._col_names:
                 PrintException.keyError()
             self._primary_key.append(key)
-
+        
         self._indexed_cols = set(self._primary_key)
         self._index = dict()
         self._index_names = dict()
@@ -103,7 +103,7 @@ class Table:
 
     @property
     def defaultkey(self):
-        return [self.row+1]
+        return (self.row+1, )
 
     @property
     def col(self):
@@ -146,18 +146,18 @@ class Table:
             keys = []
             for key in self._primary_key:
                 keys.append(t[self._col_index[key]])
-            if keys in self._tuples:
+            if tuple(keys) in self._tuples:
                 PrintException.keyError()
                 return -1
             else:
-                self._tuples[keys] = t
-                for c, tree in self._index:
+                self._tuples[tuple(keys)] = t
+                for c, tree in self._index.items():
                     tree.insert(Node(t[self._col_index[c]], keys))
         else:
             self._tuples[self.defaultkey] = t
         return 0
     
-    def _delete(self, conditions: list) -> int:
+    def _delete(self, conditions: list, try_d = False) -> int:
         # TODO: Handle foreign keys
         col, operator, val = conditions[0], conditions[1], conditions[2]
         try:
@@ -212,12 +212,17 @@ class Table:
                 for k, v in self._tuples.items():
                     if v[loc] <= val:
                         del_list.append(k)
-        for i in del_list:
-            v = self._tuples[i]
-            for c, tree in self._index:
-                tree.delete(v[self._col_index[c]], i)
-            self._tuples.pop(i)
-        return 0
+        if not try_d:
+            ret = []
+            for i in del_list:
+                v = self._tuples[i]
+                for c, tree in self._index.items():
+                    tree.delete(v[self._col_index[c]], i)
+                ret.append(self._tuples.pop(i))
+            return ret
+        else:
+            ret = [self._tuples[i] for i in del_list]
+            return ret
 
     def _update(self, col_val_pairs: list, conditions: list) -> int:
         col, operator, val = conditions[0], conditions[1], conditions[2]
@@ -483,7 +488,7 @@ class Table:
             for k, v in self._tuples.items():
                 if v[loc] <= val:
                     ret[k] = v                
-        return Table(str(time.time()), col_name, ret_dtype, None, ret)
+        return Table(str(time.time()), self._col_names, ret_dtype, None, ret)
 
     def _join(self, other, condition, mode = 1, override_colname = 0):
         '''
@@ -560,7 +565,7 @@ class Table:
         sbt = AVLTree()
         self._index[col] = sbt
         index = self._col_index[col]
-        for k, v in self._tuples:
+        for k, v in self._tuples.items():
             sbt.insert(Node(v[index], k))
 
     def _drop_index(self, name):
