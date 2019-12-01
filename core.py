@@ -18,8 +18,8 @@ class Core:
         self.terminate_map = {}
         for k, v in Param.terminate_pair.items():
             self.terminate_map[v] = k
-        self.trie = self._constructTrie()
-        self.parser = Parser(self.trie)
+        #self.trie = self._constructTrie()
+        #self.parser = Parser(self.trie)
         self.db = {}
         self.currentDB = None
         self.tables = {}
@@ -186,11 +186,14 @@ class Core:
         distinct = select['distinct']
         if len(distinct) == 0:
             distinct = None 
-        columns = [d['columns'][i] for i in select['columns']]
 
 
         #cur_table.printall() 
         #print(columns, aggr_func)
+        if columns == ['*']:
+            columns = cur_table._col_names
+        else:
+            columns = [d['columns'][i] for i in select['columns']]
 
         if cur_table == -1:	
             raise Exception('')
@@ -399,7 +402,7 @@ class Core:
         pass
 
     def _run(self):
-        pass
+        self.parser = Parser()
 
     def _create_table(self, name: str, col_names: list, dtype: list, primary_key = None, foreign_key = None) -> int:
         '''

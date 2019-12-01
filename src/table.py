@@ -531,7 +531,7 @@ class Table:
         if mode == self.JOIN_AUTO:
             if a * b > 10**7:
                 mode = self.JOIN_EXTERNALMERGE
-            elif a * b >= math.log(a) + math.log(b) + a + a:
+            elif a * b >= a*math.log(a) + b*math.log(b) + a + b:
                 mode = self.JOIN_MERGEJOIN
             else:
                 mode = self.JOIN_NESTEDLOOP
@@ -582,16 +582,16 @@ class Table:
             loc2 = other._col_index[condition[2]]
             operator = condition[1]
             # Sort
-            if codition[0] in self._indexed_cols:
-                lst = self._index[codition[0]].to_list()
+            if condition[0] in self._indexed_cols:
+                lst = self._index[condition[0]].to_list()
                 t1_tuples = []
                 for node in lst:
                     for k in node.key:
                         t1_tuples.append(self._tuples[k])
             else:
                 t1_tuples = sorted([v for _, v in self._tuples.items()], key = lambda x: x[loc1])
-            if codition[2] in other._indexed_cols:
-                lst = other._index[codition[0]].to_list()
+            if condition[2] in other._indexed_cols:
+                lst = other._index[condition[2]].to_list()
                 t2_tuples = []
                 for node in lst:
                     for k in node.key:

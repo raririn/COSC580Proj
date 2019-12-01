@@ -15,3 +15,7 @@ class PrintException:
     @staticmethod
     def indexError():
         print('Index does not exist.')
+
+    @staticmethod
+    def syntaxError():
+        print('')
