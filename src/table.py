@@ -679,7 +679,8 @@ class Table:
 
     def _drop_index(self, name):
         if name not in self._index_names:
-            raise PrintException.indexError()
+            PrintException.indexError()
+            raise Exception('')
         col = self._index_names[name]
         self._indexed_cols.remove(col)
         self._index[col] = None
