@@ -215,6 +215,7 @@ class Table:
         orderby = [['colA', 'colB', ...], desc]
         groupby = ['colA', 'colB', ...]
         '''
+        ori_col_names = col_names
         try:
             ori_locs = [self._col_names.index(i) for i in col_names]
             if groupby:
@@ -232,10 +233,12 @@ class Table:
 
 
         
-        if not aggr_func:
-            func = ['', '']
+        if not aggr_func or len(aggr_func) == 0:
+            func = ['', ''] 
         else:
             func = aggr_func
+        
+        #TODO: Min, Max func
 
         if groupby:
             if func[0].lower() == 'avg':
@@ -243,31 +246,38 @@ class Table:
                 groupby_locs = [self._col_names.index(i) for i in groupby]
                 new_ret = {}
                 count_d = {}
+                sum_d = {}
                 for k, v in ret.items():
-                    new_ret[tuple([v[i] for i in groupby_locs])] = new_ret.get(tuple([v[i] for i in groupby_locs]), 0) + v[avg_loc]
+                    sum_d[tuple([v[i] for i in groupby_locs])] = sum_d.get(tuple([v[i] for i in groupby_locs]), 0) + v[avg_loc]
                     count_d[tuple([v[i] for i in groupby_locs])] = count_d.get(tuple([v[i] for i in groupby_locs]), 0) + 1
-                for k, _ in new_ret.items():
-                    new_ret[k] = new_ret[k] / count_d[k]
-                col_names = ['AVG(' + str(func[1]) +')']
-                ret_dtype = ['float']
+                for k, _ in sum_d.items():
+                    sum_d[k] = sum_d[k] / count_d[k]
+                for k, v in ret.items():
+                     new_ret[tuple([v[i] for i in groupby_locs])] = (sum_d[tuple([v[i] for i in groupby_locs])], ) + v
+                col_names = ['AVG(' + str(func[1]) +')'] + self._col_names
+                ret_dtype = ['float'] + self._dtype
                 ret = new_ret
             elif func[0].lower() == 'count':
                 avg_loc = self._col_names.index(func[1])
                 groupby_locs = [self._col_names.index(i) for i in groupby]
                 new_ret = {}
+                count_dict = {}
                 for k, v in ret.items():
-                    new_ret[tuple([v[i] for i in groupby_locs])] = new_ret.get(tuple([v[i] for i in groupby_locs]), 0) + 1
-                col_names = ['COUNT(' + str(func[1]) +')']
-                ret_dtype = ['int']
+                    count_dict[tuple([v[i] for i in groupby_locs])] = count_dict.get(tuple([v[i] for i in groupby_locs]), 0) + 1
+                    new_ret[tuple([v[i] for i in groupby_locs])] = (count_dict[tuple([v[i] for i in groupby_locs])], ) + v
+                col_names = ['COUNT(' + str(func[1]) +')'] + self._col_names
+                ret_dtype = ['int'] + self._dtype
                 ret = new_ret
             elif func[0].lower() == 'sum':
                 avg_loc = self._col_names.index(func[1])
                 groupby_locs = [self._col_names.index(i) for i in groupby]
                 new_ret = {}
+                sum_d = {}
                 for k, v in ret.items():
-                    new_ret[tuple([v[i] for i in groupby_locs])] = new_ret.get(tuple([v[i] for i in groupby_locs]), 0) + v[avg_loc]
-                col_names = ['SUM(' + str(func[1]) +')']
-                ret_dtype = ['float']
+                    sum_d[tuple([v[i] for i in groupby_locs])] = sum_d.get(tuple([v[i] for i in groupby_locs]), 0) + v[avg_loc]
+                    new_ret[tuple([v[i] for i in groupby_locs])] = (sum_d[tuple([v[i] for i in groupby_locs])], ) + v
+                col_names = ['SUM(' + str(func[1]) +')'] + self._col_names
+                ret_dtype = ['float'] + self._dtype
                 ret = new_ret
             else:
                 groupby_locs = [self._col_names.index(i) for i in groupby]
@@ -344,9 +354,20 @@ class Table:
             new_ret[lastkey] = ret[lastkey]
             ret = new_ret
         
-        if groupby:
+        if groupby and not aggr_func:
             for k, v in ret.items():
                 ret[k] = tuple([v[i] for i in ori_locs])
+        
+        if groupby and aggr_func:
+            for i in range(len(ori_col_names)):
+                if ori_col_names[i] == aggr_func[1]:
+                    old_name = ori_col_names
+                    ori_col_names[i] = aggr_func[0].upper() + '(' + aggr_func[1] + ')'
+            new_locs = [col_names.index(i) for i in ori_col_names]
+            for k, v in ret.items():
+                ret[k] = tuple(v[i] for i in new_locs)
+            ret_dtype = [ret_dtype[col_names.index(i)] for i in ori_col_names]
+            col_names = ori_col_names
 
         return Table(name = time.time(), col_names = col_names, dtype = ret_dtype, primary_key = None, tuples = ret)
 
