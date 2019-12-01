@@ -261,6 +261,25 @@ class Core:
         if d['update'] in self.tables:
             target = self.tables[d['update']]
             target._update(d['set'], d['where'])
+    
+    def execute_insert(self, d):
+        '''
+        INSERT INTO Employees
+        VALUES (1, 2, 3)
+
+        d = {
+            'insert_into': 'Employees',
+            'values': [(1, 2, 3), (4, 5, 6)]
+        }
+        '''
+        if d['insert_into'] in self.tables:
+            target = self.tables[d['insert_into']]
+            vals = d['values']
+            for val in vals:
+                target._insert(val)
+        else:
+            raise Exception('')
+        return 0
 
     def execute_create_db(self, d):
         '''
@@ -328,8 +347,17 @@ class Core:
 
         If not specified, the last field in d['foreign_key'] can be None.
         '''
-        if not d['foreign_key']:
-            fk = Table.ONDELETE_NOACTION
+        if len(d['foreign_key']) == 4:
+            if not d['foreign_key'][3] or d['foreign_key'][3] == 'NOACTION':
+                fk = [d['foreign_key'][0], d['foreign_key'][1], d['foreign_key'][2], Table.ONDELETE_NOACTION]
+            elif d['foreign_key'][3] == 'CASCADE':
+                fk = [d['foreign_key'][0], d['foreign_key'][1], d['foreign_key'][2], Table.ONDELETE_CASCADE]
+            elif d['foreign_key'][3] == 'SETNULL':
+                fk = [d['foreign_key'][0], d['foreign_key'][1], d['foreign_key'][2], Table.ONDELETE_SETNULL]
+            else:
+                fk = d['foreign_key']
+        else:
+            fk = None
         return self._create_table(d['name'], d['col_names'], d['dtype'], d['primary_key'], fk)
     
     def execute_drop_table(self, d):
