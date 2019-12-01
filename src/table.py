@@ -1,3 +1,4 @@
+from utils.AVL import *
 from utils.myexception import PrintException
 
 import pickle
@@ -34,6 +35,10 @@ class Table:
         self._col_names = col_names
         self._dtype = dtype
 
+        self._col_index = dict()
+        for i, name in enumerate(col_names):
+            self._col_index[name] = i
+
         # TODO:
         # Should we keep a name field inside tha table instance?
 
@@ -58,13 +63,19 @@ class Table:
 
         Then b._foreign_key = [['b', 'A', 'a', self.ONDELETE_CASCADE]]
         '''
-        self._index = None
-        if primary_key:
-            if primary_key not in self._col_names:
+        self._primary_key = []
+        if not primary_key:
+            primary_key = []
+        for key in primary_key:
+            if key not in self._col_names:
                 PrintException.keyError()
-            self._primary_key = primary_key
-        else:
-            self._primary_key = None
+            self._primary_key.append(key)
+
+        self._indexed_cols = set(self._primary_key)
+        self._index = dict()
+        self._index_names = dict()
+        for key in primary_key:
+            self._create_index("_" + key, key)
     
     @classmethod
     def createTable(cls, name: str, col_names: list, dtype: list, primary_key = None, tuples = None):
@@ -92,7 +103,7 @@ class Table:
 
     @property
     def defaultkey(self):
-        return self.row+1
+        return [self.row+1]
 
     @property
     def col(self):
@@ -123,7 +134,6 @@ class Table:
         self._foreign_key.append(constraint)
         return 0
 
-    #W
     def _insert(self, t: tuple) -> int:
         # TODO: Check constraints: like NOT NULL
         if self.col != len(t):
@@ -133,77 +143,142 @@ class Table:
             PrintException.typeError()
             return -1
         if self._primary_key:
-            primary_loc = self._col_names.index(self._primary_key)
-            if t[primary_loc] in self._tuples:
+            keys = []
+            for key in self._primary_key:
+                keys.append(t[self._col_index[key]])
+            if keys in self._tuples:
                 PrintException.keyError()
                 return -1
             else:
-                self._tuples[t[primary_loc]] = t
+                self._tuples[keys] = t
+                for c, tree in self._index:
+                    tree.insert(Node(t[self._col_index[c]], keys))
         else:
             self._tuples[self.defaultkey] = t
         return 0
     
-    def _delete(self, conditions: int) -> int:
+    def _delete(self, conditions: list) -> int:
         # TODO: Handle foreign keys
         col, operator, val = conditions[0], conditions[1], conditions[2]
         try:
-            loc = self._col_names.index(col_name)
+            loc = self._col_index[col]
         except:
             PrintException.keyError()
             return -1
         del_list = []
-        if operator == '>':
-            for k, v in self._tuples.items():
-                if v[loc] > val:
-                    del_list.append(k)
-        elif operator == '=':
-            for k, v in self._tuples.items():
-                if v[loc] == val:
-                    del_list.append(k)          
-        elif operator == '>=':
-            for k, v in self._tuples.items():
-                if v[loc] >= val:
-                    del_list.append(k) 
-        elif operator == '<':
-            for k, v in self._tuples.items():
-                if v[loc] < val:
-                    del_list.append(k)
-        elif operator == '<=':
-            for k, v in self._tuples.items():
-                if v[loc] <= val:
-                    del_list.append(k)  
+        if col in self._indexed_cols:
+            sbt = self._index[col]
+            if operator == '>':
+                lst = sbt.find_greater_than(val)
+                for i in lst:
+                    del_list.extend(i.key)
+            elif operator == '=':
+                node = sbt.find(val)
+                del_list.extend(node.key)
+            elif operator == '>=':
+                lst = sbt.find_greater_than(val)
+                for i in lst:
+                    del_list.extend(i.key)
+                node = sbt.find(val)
+                del_list.extend(node.key)
+            elif operator == '<':
+                lst = sbt.find_smaller_than(val)
+                for i in lst:
+                    del_list.extend(i.key)
+            elif operator == '<=':
+                lst = sbt.find_smaller_than(val)
+                for i in lst:
+                    del_list.extend(i.key)
+                node = sbt.find(val)
+                del_list.extend(node.key)
+        else:
+            if operator == '>':
+                for k, v in self._tuples.items():
+                    if v[loc] > val:
+                        del_list.append(k)
+            elif operator == '=':
+                for k, v in self._tuples.items():
+                    if v[loc] == val:
+                        del_list.append(k)
+            elif operator == '>=':
+                for k, v in self._tuples.items():
+                    if v[loc] >= val:
+                        del_list.append(k)
+            elif operator == '<':
+                for k, v in self._tuples.items():
+                    if v[loc] < val:
+                        del_list.append(k)
+            elif operator == '<=':
+                for k, v in self._tuples.items():
+                    if v[loc] <= val:
+                        del_list.append(k)
         for i in del_list:
+            v = self._tuples[i]
+            for c, tree in self._index:
+                tree.delete(v[self._col_index[c]], i)
             self._tuples.pop(i)
         return 0
 
     def _update(self, col_val_pairs: list, conditions: list) -> int:
-        locs = [self._col_names.index(i) for i, _ in col_val_pairs]
+        col, operator, val = conditions[0], conditions[1], conditions[2]
+        loc = self._col_index[col]
+        locs = [self._col_index[i] for i, _ in col_val_pairs]
         vals = [i for _, i in col_val_pairs]
-        if operator == '>':
-            for k, v in self._tuples.items():
-                if v[loc] > val:
-                    for x in len(locs):
-                        v[locs[x]] = vals[x]
-        elif operator == '=':
-            for k, v in self._tuples.items():
-                if v[loc] == val:
-                    for x in len(locs):
-                        v[locs[x]] = vals[x]       
-        elif operator == '>=':
-            for k, v in self._tuples.items():
-                if v[loc] >= val:
-                    for x in len(locs):
-                        v[locs[x]] = vals[x]
-        elif operator == '<':
-            for k, v in self._tuples.items():
-                if v[loc] < val:
-                    for x in len(locs):
-                        v[locs[x]] = vals[x]
-        elif operator == '<=':
-            for k, v in self._tuples.items():
-                if v[loc] <= val:
-                    for x in len(locs):
-                        v[locs[x]] = vals[x]
+        update_list = []
+        if col in self._indexed_cols:
+            sbt = self._index[col]
+            if operator == '>':
+                lst = sbt.find_greater_than(val)
+                for i in lst:
+                    update_list.extend(i.key)
+            elif operator == '=':
+                node = sbt.find(val)
+                update_list.extend(node.key)
+            elif operator == '>=':
+                lst = sbt.find_greater_than(val)
+                for i in lst:
+                    update_list.extend(i.key)
+                node = sbt.find(val)
+                update_list.extend(node.key)
+            elif operator == '<':
+                lst = sbt.find_smaller_than(val)
+                for i in lst:
+                    update_list.extend(i.key)
+            elif operator == '<=':
+                lst = sbt.find_smaller_than(val)
+                for i in lst:
+                    update_list.extend(i.key)
+                node = sbt.find(val)
+                update_list.extend(node.key)
+        else:
+            if operator == '>':
+                for k, v in self._tuples.items():
+                    if v[loc] > val:
+                        update_list.append(k)
+            elif operator == '=':
+                for k, v in self._tuples.items():
+                    if v[loc] == val:
+                        update_list.append(k)
+            elif operator == '>=':
+                for k, v in self._tuples.items():
+                    if v[loc] >= val:
+                        update_list.append(k)
+            elif operator == '<':
+                for k, v in self._tuples.items():
+                    if v[loc] < val:
+                        update_list.append(k)
+            elif operator == '<=':
+                for k, v in self._tuples.items():
+                    if v[loc] <= val:
+                        update_list.append(k)
+        for i in update_list:
+            v = self._tuples[i]
+            for x in range(len(locs)):
+                c = self._col_names[locs[x]]
+                if c in self._index:
+                    self._index[c].delete(v[locs[x]], i)
+                    self._index[c].insert(Node(vals[x], i))
+                v[locs[x]] = vals[x]
         return 0
 
     def _select(self, col_names, distinct = None, aggr_func = None, alias = None, orderby = None, groupby = None):
@@ -217,11 +292,15 @@ class Table:
         '''
         ori_col_names = col_names
         try:
+<<<<<<< HEAD
             ori_locs = [self._col_names.index(i) for i in col_names]
             if groupby:
                 locs = [self._col_names.index(i) for i in set(groupby + col_names)]
             else:
                 locs = ori_locs
+=======
+            locs = [self._col_index[i] for i in col_names]
+>>>>>>> 6234341728e63a0dbc27c57d20e4fa06e6707a99
         except:
             PrintException.keyError()
             return -1
@@ -242,8 +321,8 @@ class Table:
 
         if groupby:
             if func[0].lower() == 'avg':
-                avg_loc = self._col_names.index(func[1])
-                groupby_locs = [self._col_names.index(i) for i in groupby]
+                avg_loc = self._col_index[func[1]]
+                groupby_locs = [self._col_index[i] for i in groupby]
                 new_ret = {}
                 count_d = {}
                 sum_d = {}
@@ -258,8 +337,8 @@ class Table:
                 ret_dtype = ['float'] + self._dtype
                 ret = new_ret
             elif func[0].lower() == 'count':
-                avg_loc = self._col_names.index(func[1])
-                groupby_locs = [self._col_names.index(i) for i in groupby]
+                avg_loc = self._col_index[func[1]]
+                groupby_locs = [self._col_index[i] for i in groupby]
                 new_ret = {}
                 count_dict = {}
                 for k, v in ret.items():
@@ -269,8 +348,8 @@ class Table:
                 ret_dtype = ['int'] + self._dtype
                 ret = new_ret
             elif func[0].lower() == 'sum':
-                avg_loc = self._col_names.index(func[1])
-                groupby_locs = [self._col_names.index(i) for i in groupby]
+                avg_loc = self._col_index[func[1]]
+                groupby_locs = [self._col_index[i] for i in groupby]
                 new_ret = {}
                 sum_d = {}
                 for k, v in ret.items():
@@ -280,14 +359,14 @@ class Table:
                 ret_dtype = ['float'] + self._dtype
                 ret = new_ret
             else:
-                groupby_locs = [self._col_names.index(i) for i in groupby]
+                groupby_locs = [self._col_index[i] for i in groupby]
                 new_ret = {}
                 for k, v in ret.items():
                     new_ret[tuple([v[i] for i in groupby_locs])] = v
                 ret = new_ret
         else:
             if func[0].lower() == 'avg':
-                loc = self._col_names.index(func[1])
+                loc = self._col_index[func[1]]
                 new_ret = {}
                 new_ret['AVG(' + str(func[1]) +')'] = 0
                 count = 0
@@ -299,7 +378,7 @@ class Table:
                 ret_dtype = ['float']
                 ret = new_ret
             elif func[0].lower() == 'count':
-                loc = self._col_names.index(func[1])
+                loc = self._col_index[func[1]]
                 new_ret = {}
                 new_ret['COUNT(' + str(func[1]) +')'] = 0
                 for k, v in ret.items():
@@ -308,7 +387,7 @@ class Table:
                 ret_dtype = ['int']
                 ret = new_ret            
             elif func[0].lower() == 'sum':
-                loc = self._col_names.index(func[1])
+                loc = self._col_index[func[1]]
                 new_ret = {}
                 new_ret['SUM(' + str(func[1]) +')'] = 0
                 for k, v in ret.items():
@@ -318,7 +397,7 @@ class Table:
                 ret = new_ret 
 
         if distinct:
-            distinct_locs = [self._col_names.index(i) for i in distinct]
+            distinct_locs = [self._col_index[i] for i in distinct]
             s = set()
             new_ret = {}
             for k, v in ret.items():
@@ -331,7 +410,7 @@ class Table:
 
         # Note that groupby is prior to orderby!
         if orderby:
-            locs, desc_flag = [self._col_names.index(i) for i in orderby[0]], orderby[1]
+            locs, desc_flag = [self._col_index[i] for i in orderby[0]], orderby[1]
             if desc_flag:
                 vals = sorted([v for _, v in ret.items()], key = lambda x: tuple([x[i] for i in locs]), reverse = True)
             else:
@@ -369,7 +448,7 @@ class Table:
             ret_dtype = [ret_dtype[col_names.index(i)] for i in ori_col_names]
             col_names = ori_col_names
 
-        return Table(name = time.time(), col_names = col_names, dtype = ret_dtype, primary_key = None, tuples = ret)
+        return Table(name = str(time.time()), col_names = col_names, dtype = ret_dtype, primary_key = None, tuples = ret)
 
     def _project(self, condition, alias = None):
         '''
@@ -382,7 +461,7 @@ class Table:
             raise Exception('')
         col_name, operator, val = condition[0], condition[1], condition[2]
         try:
-            loc = self._col_names.index(col_name)
+            loc = self._col_index[col_name]
         except:
             PrintException.keyError()
             return -1
@@ -408,7 +487,11 @@ class Table:
             for k, v in self._tuples.items():
                 if v[loc] <= val:
                     ret[k] = v                
+<<<<<<< HEAD
         return Table(time.time(), self._col_names, ret_dtype, None, ret)
+=======
+        return Table(str(time.time()), col_name, ret_dtype, None, ret)
+>>>>>>> 6234341728e63a0dbc27c57d20e4fa06e6707a99
 
     def _join(self, other, condition, mode = 1, override_colname = 0):
         '''
@@ -422,8 +505,8 @@ class Table:
         if mode == self.JOIN_NESTEDLOOP:
             count = 0
             ret = {}
-            loc1 = self._col_names.index(condition[0])
-            loc2 = other._col_names.index(condition[2])
+            loc1 = self._col_index[condition[0]]
+            loc2 = other._col_index[condition[2]]
             operator = condition[1]
             for _, v1 in self._tuples.items():
                 for _, v2 in other._tuples.items():
@@ -456,11 +539,12 @@ class Table:
             elif override_colname == Table.OVERRIDE_COLNAME_BOTH:
                 ret_col_name = list(map(lambda x: self.name + '.' + x, self._col_names)) + list(map(lambda x: other.name + '.' + x, other._col_names))
             ret_dtype = self._dtype + other._dtype
-            return Table(time.time(), ret_col_name, ret_dtype, None, ret)
-        elif mode == JOIN_MERGEJOIN:
+            return Table(str(time.time()), ret_col_name, ret_dtype, None, ret)
+        elif mode == self.JOIN_MERGEJOIN:
             pass
         else:
             return -1
+<<<<<<< HEAD
         
     def _union(self, other):
         s = set()
@@ -478,5 +562,27 @@ class Table:
                 count += 1
         return Table(time.time(), ret_col_name, ret_dtype, None, ret)        
         
+=======
+
+    def _create_index(self, name, col):
+        self._index_names[name] = col
+        self._indexed_cols.add(col)
+        sbt = AVLTree()
+        self._index[col] = sbt
+        index = self._col_index[col]
+        for k, v in self._tuples:
+            sbt.insert(Node(v[index], k))
+
+    def _drop_index(self, name):
+        if name not in self._index_names:
+            raise PrintException.indexError()
+        col = self._index_names[name]
+        self._indexed_cols.remove(col)
+        self._index[col] = None
+        del self._index[col]
+        self._index_names[name] = None
+        del self._index_names[name]
+
+>>>>>>> 6234341728e63a0dbc27c57d20e4fa06e6707a99
     def _index_join(self):
         pass
