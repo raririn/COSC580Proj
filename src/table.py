@@ -292,15 +292,11 @@ class Table:
         '''
         ori_col_names = col_names
         try:
-<<<<<<< HEAD
             ori_locs = [self._col_names.index(i) for i in col_names]
             if groupby:
                 locs = [self._col_names.index(i) for i in set(groupby + col_names)]
             else:
                 locs = ori_locs
-=======
-            locs = [self._col_index[i] for i in col_names]
->>>>>>> 6234341728e63a0dbc27c57d20e4fa06e6707a99
         except:
             PrintException.keyError()
             return -1
@@ -487,11 +483,7 @@ class Table:
             for k, v in self._tuples.items():
                 if v[loc] <= val:
                     ret[k] = v                
-<<<<<<< HEAD
-        return Table(time.time(), self._col_names, ret_dtype, None, ret)
-=======
         return Table(str(time.time()), col_name, ret_dtype, None, ret)
->>>>>>> 6234341728e63a0dbc27c57d20e4fa06e6707a99
 
     def _join(self, other, condition, mode = 1, override_colname = 0):
         '''
@@ -544,7 +536,6 @@ class Table:
             pass
         else:
             return -1
-<<<<<<< HEAD
         
     def _union(self, other):
         s = set()
@@ -562,7 +553,6 @@ class Table:
                 count += 1
         return Table(time.time(), ret_col_name, ret_dtype, None, ret)        
         
-=======
 
     def _create_index(self, name, col):
         self._index_names[name] = col
@@ -583,6 +573,5 @@ class Table:
         self._index_names[name] = None
         del self._index_names[name]
 
->>>>>>> 6234341728e63a0dbc27c57d20e4fa06e6707a99
     def _index_join(self):
         pass
