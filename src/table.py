@@ -387,7 +387,7 @@ class Table:
             for k, v in self._tuples.items():
                 if v[loc] <= val:
                     ret[k] = v                
-        return Table(time.time(), col_name, ret_dtype, None, ret)
+        return Table(time.time(), self._col_names, ret_dtype, None, ret)
 
     def _join(self, other, condition, mode = 1, override_colname = 0):
         '''
