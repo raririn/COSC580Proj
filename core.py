@@ -164,6 +164,8 @@ class Core:
             #print(alias_table)
             #final_table.printall()
         
+        if final_table == -1:	
+            raise Exception('')
         T, cur_table = final_table, final_table
         #Sample: i = ['AND', ['A1.a', '>', '3']]
         for i in conditions:
@@ -190,7 +192,8 @@ class Core:
         #cur_table.printall() 
         #print(columns, aggr_func)
 
-
+        if cur_table == -1:	
+            raise Exception('')
         cur_table = cur_table._select(columns, distinct = distinct, aggr_func = aggr_func, orderby = orderby, groupby = groupby)
         reverse_columns_name_map = {}
         for k, v in d['columns'].items():
