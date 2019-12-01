@@ -90,7 +90,7 @@ class Core:
         alias_table = d['tables']
         
         # MODIFY THIS!!!
-        runtime_dict = self.tables
+        runtime_dict = deepcopy(self.tables)
         # ^^^^
         
         joins = query['where']['joins']
@@ -105,6 +105,13 @@ class Core:
         else:
             orderby = None
         
+        if len(joins) == 0:
+            # If there is no join, we can assume there is only one table!
+            target = d['tables'][query['from'][0]]
+            final_table = runtime_dict[target]
+        
+            #final_table.printall()
+
         for i in joins:
             '''
             Sample: i = ['A1.a', '=', 'A2.b']
@@ -172,11 +179,18 @@ class Core:
         aggr_func = select['aggr_func']
         if len(aggr_func) == 0:
             aggr_func = None
+        else:
+            aggr_func[1] = d['columns'][aggr_func[1]]
         distinct = select['distinct']
         if len(distinct) == 0:
-            distinct = None
-        cur_table.printall()  
+            distinct = None 
         columns = [d['columns'][i] for i in select['columns']]
+
+
+        #cur_table.printall() 
+        #print(columns, aggr_func)
+
+
         cur_table = cur_table._select(columns, distinct = distinct, aggr_func = aggr_func, orderby = orderby, groupby = groupby)
         reverse_columns_name_map = {}
         for k, v in d['columns'].items():
@@ -200,13 +214,10 @@ class Core:
                 # A.a REFERENCES B.b
                 # B._foreign_key = [['b', 'A', 'a', self.ONDELETE_CASCADE]]
                 for fk in target._foreign_key:
-                    print(fk)
                     target_c, ref_t, ref_c, fk_policy = fk[0], self.tables[fk[1]], fk[2], fk[3]
                     target_fk_loc = target._col_names.index(target_c)
                     ref_fk_loc = ref_t._col_names.index(ref_c)
                     to_d = target._delete(d['where'], try_d = True)
-                    
-                    print(to_d, target_fk_loc, ref_fk_loc)
                     ref_t.printall()
                     if fk_policy == Table.ONDELETE_NOACTION or fk_policy == Table.ONDELETE_RESTRICT:
                         for _, v in ref_t._tuples.items():

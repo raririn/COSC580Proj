@@ -100,6 +100,18 @@ class Table:
         for k, v in self._tuples.items():
             print(k, v)
     
+    def formatout(self):
+        for i in self._col_names:
+            print(i, end = ' ')
+        print('\n')
+        keys = sorted([k for k, _ in self._tuples.items()])
+        for i in keys:
+            for j in self._tuples[i]:
+                print(j, end = ' ')
+            print('\n')
+
+
+    
 
     @property
     def defaultkey(self):
@@ -296,20 +308,19 @@ class Table:
         groupby = ['colA', 'colB', ...]
         '''
         ori_col_names = col_names
-        try:
-            ori_locs = [self._col_names.index(i) for i in col_names]
-            if groupby:
-                locs = [self._col_names.index(i) for i in set(groupby + col_names)]
-            else:
-                locs = ori_locs
-        except:
-            PrintException.keyError()
-            return -1
+
+        ori_locs = [self._col_names.index(i) for i in col_names]
+        if groupby:
+            locs = [self._col_names.index(i) for i in set(groupby + col_names)]
+        else:
+            locs = ori_locs
+        
         ret_dtype = [self._dtype[i] for i in locs]
         
         ret = {}
         for k, v in self._tuples.items():
             ret[k] = tuple([v[i] for i in locs])
+        new_col_names = [self._col_names[i] for i in locs]
 
 
         
@@ -359,9 +370,11 @@ class Table:
                 col_names = ['SUM(' + str(func[1]) +')'] + self._col_names
                 ret_dtype = ['float'] + self._dtype
                 ret = new_ret
+                #print(ret)
             else:
-                groupby_locs = [self._col_index[i] for i in groupby]
+                groupby_locs = [new_col_names.index(i) for i in groupby]
                 new_ret = {}
+
                 for k, v in ret.items():
                     new_ret[tuple([v[i] for i in groupby_locs])] = v
                 ret = new_ret
