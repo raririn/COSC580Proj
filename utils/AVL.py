@@ -205,7 +205,7 @@ class AVLTree:
 class Node:
     def __init__(self, val, key):
         self.val = val
-        self.key = set(key)
+        self.key = set([key])
         self.left = None
         self.right = None
         self.height = 1
