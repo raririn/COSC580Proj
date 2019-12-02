@@ -1,5 +1,3 @@
-from utils.utils import Param
-from utils.lex_header import Symbol
 from utils.myexception import PrintException
 from src.table import Table
 import re
@@ -8,27 +6,6 @@ class Parser:
 
     def __init__(self):
         pass
-    
-    def _tokenize(self, word):
-        if self.trie.search(word):
-            terminate = Param.terminate_pair[self.trie.search(word)]
-        else:
-            if word in Param.punctuation:
-                terminate  = 'Delimiter'
-            else:
-                try:
-                    int(word)
-                    terminate = 'Value'
-                except:
-                    terminate = 'Identifier'
-        return Symbol(word, terminate)
-
-    def _split(self, string):
-        parts = string.split()
-
-        # TODO: Handle multiple keywords
-
-        return list(map(self._tokenize, parts))
 
     def parse(self, string):
         tokens = re.split("\\s", string.strip())
@@ -39,6 +16,7 @@ class Parser:
     def parse_tokens(self, tokens):
         if tokens[0] == "select":
             res = {
+                'type': 'select',
                 'query': {
                     'select': {
                         'columns': [],
@@ -280,9 +258,10 @@ class Parser:
                 PrintException.syntaxError()
                 raise SyntaxError('')
             elif tokens[1] == 'database':
-                return {'name': tokens[2]}
+                return {'type': 'create_db', 'name': tokens[2]}
             elif tokens[1] == 'table':
                 res = {
+                    'type': 'create_table', 
                     'name': tokens[2].strip().rstrip(')'),
                     'col_names': [],
                     'dtype': [],
@@ -376,7 +355,7 @@ class Parser:
                 cols = []
                 for part in parts:
                     cols.append(part.strip('()'))
-                return {'name': index_name, 'table': table_name, 'columns': cols}
+                return {'type': 'create_index', 'name': index_name, 'table': table_name, 'columns': cols}
             else:
                 PrintException.syntaxError()
                 raise SyntaxError('')
@@ -386,15 +365,15 @@ class Parser:
                 PrintException.syntaxError()
                 raise SyntaxError('')
             elif tokens[1] == 'database':
-                return {'name': tokens[2]}
+                return {'type': 'drop_db', 'name': tokens[2]}
             elif tokens[1] == 'table':
-                return {'name': tokens[2]}
+                return {'type': 'drop_table', 'name': tokens[2]}
             elif tokens[1] == 'index':
                 if len(tokens)< 5:
                     PrintException.syntaxError()
                     raise SyntaxError('')
                 else:
-                    return {'table': tokens[4], 'index': tokens[2]}
+                    return {'type': 'drop_index', 'table': tokens[4], 'index': tokens[2]}
             else:
                 PrintException.syntaxError()
                 raise SyntaxError('')
@@ -418,12 +397,15 @@ class Parser:
                     last_junction = tokens[i]
                     i += 1
                 op0, op1, op2 = tokens[i], tokens[i + 1], tokens[i + 2]
+                if Parser._is_val(op2):
+                    op2 = float(op2)
                 if last_junction:
                     conditions.append([last_junction, [op0, op1, op2]])
                 else:
                     conditions.append(['and', [op0, op1, op2]])
                 i += 3
             return {
+                'type': 'update',
                 'update': table,
                 'set': vals,
                 'where': conditions
@@ -433,14 +415,49 @@ class Parser:
             i = 4
             s = ''
             while i < len(tokens):
-                s += tokens[i]
+                s += tokens[i] + ' '
                 i += 1
-            s = s.strip('()')
+            s = s.lstrip('(').rstrip(')')
+            ss = re.split(",", s)
+            vals = []
+            for t in ss:
+                t = t.strip().lstrip('(').rstrip(')')
+                if Parser._is_val(t):
+                    vals.append(float(t))
+                else:
+                    vals.append(t)
             return {
+                'type': 'insert',
                 'insert_into': tokens[2],
-                'values': re.split(",", s)
+                'values': vals
             }
         
+        elif tokens[0] == 'delete':
+            if len(tokens) < 7 or tokens[1] != 'from':
+                PrintException.syntaxError()
+                raise SyntaxError('')
+            res = {
+                'type': 'delete',
+                'where': []
+            }
+            res['from'] = tokens[2]
+            i = 4
+            last_junction = None
+            while i < len(tokens):
+                if tokens[i] in ['and', 'or']:
+                    last_junction = tokens[i]
+                    i += 1
+                op0, op1, op2 = tokens[i], tokens[i + 1], tokens[i + 2]
+                if last_junction:
+                    res['where'].append([last_junction, [op0, op1, op2]])
+                else:
+                    res['where'].append(['and', [op0, op1, op2]])
+                i += 3
+            return res
+
+        elif tokens[0] == 'use':
+            return {'type': 'use_db', 'name': tokens[1]}
+
         else:
             PrintException.syntaxError()
             raise SyntaxError('')
