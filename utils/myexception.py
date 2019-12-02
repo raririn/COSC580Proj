@@ -10,7 +10,7 @@ class PrintException:
 
     @staticmethod
     def typeError():
-        print('')
+        print('t')
 
     @staticmethod
     def indexError():
@@ -18,4 +18,4 @@ class PrintException:
 
     @staticmethod
     def syntaxError():
-        print('')
+        print('s')

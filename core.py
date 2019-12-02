@@ -222,7 +222,8 @@ class Core:
                 new_t = T._project(condition)
                 cur_table = cur_table._union(new_t)
 
-        aggr_func = select['aggr_func']
+        aggr_func = select['aggr_func'][0]
+        print(aggr_func)
         if len(aggr_func) == 0:
             aggr_func = None
         else:
@@ -325,8 +326,7 @@ class Core:
         if self.get_table(d['insert_into']):
             target = self.get_table(d['insert_into'])
             vals = d['values']
-            for val in vals:
-                target._insert(val)
+            return target._insert(tuple(vals))
         else:
             raise Exception('')
         return 0
@@ -474,11 +474,7 @@ class Core:
         self.tables[name] = Table.createTable(name, col_names = col_names, dtype = dtype, primary_key = primary_key)
         return 0
         
-        
-
-    def _create_index(self):
-        pass
-
+ 
     def _drop_table(self, table_name, if_exist = False):
         if not self.get_table(table_name):
             if if_exist:
@@ -488,10 +484,6 @@ class Core:
                 return -1
         self.tables.pop(table_name)
         return 0
-
-
-    def _drop_index(self):
-        pass
 
 
 if __name__ == "__main__":

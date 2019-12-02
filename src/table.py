@@ -161,8 +161,7 @@ class Table:
         return 0
 
     def _insert(self, t: tuple) -> int:
-        # TODO: Check constraints: like NOT NULL
-        if self.col != len(t):
+        if len(self._col_names) != len(t):
             PrintException.dimensionError()
             return -1
         if not self._checkdtype(t):
@@ -386,6 +385,24 @@ class Table:
                 ret_dtype = ['float'] + self._dtype
                 ret = new_ret
                 #print(ret)
+            elif func[0].lower() == 'max':
+                avg_loc = self._col_index[func[1]]
+                groupby_locs = [self._col_index[i] for i in groupby]
+                new_ret = {}
+                for k, v in ret.items():
+                    new_ret[tuple([v[i] for i in groupby_locs])] = max(new_ret.get(tuple([v[i] for i in groupby_locs]), float('-inf')), v[avg_loc])
+                col_names = ['MAX(' + str(func[1]) +')'] + self._col_names
+                ret_dtype = ['float'] + self._dtype
+                ret = new_ret     
+            elif func[0].lower() == 'min':
+                avg_loc = self._col_index[func[1]]
+                groupby_locs = [self._col_index[i] for i in groupby]
+                new_ret = {}
+                for k, v in ret.items():
+                    new_ret[tuple([v[i] for i in groupby_locs])] = min(new_ret.get(tuple([v[i] for i in groupby_locs]), float('inf')), v[avg_loc])
+                col_names = ['MIN(' + str(func[1]) +')'] + self._col_names
+                ret_dtype = ['float'] + self._dtype
+                ret = new_ret            
             else:
                 groupby_locs = [new_col_names.index(i) for i in groupby]
                 new_ret = {}
@@ -422,9 +439,24 @@ class Table:
                 for k, v in ret.items():
                     new_ret['SUM(' + str(func[1]) +')'] += v[loc]
                 col_names = ['SUM(' + str(func[1]) +')']
-                ret_dtype = ['int']
+                ret_dtype = ['float']
                 ret = new_ret 
-
+            elif func[0].lower() == 'min':
+                loc = self._col_index[func[1]]
+                new_ret = {}
+                for k, v in ret.items():
+                    new_ret['MIN(' + str(func[1]) +')'] = min(new_ret.get('MIN(' + str(func[1]) +')', float('inf')), v[loc])
+                col_names = ['MIN(' + str(func[1]) +')']
+                ret_dtype = ['float']
+                ret = new_ret 
+            elif func[0].lower() == 'max':
+                loc = self._col_index[func[1]]
+                new_ret = {}
+                for k, v in ret.items():
+                    new_ret['MAX(' + str(func[1]) +')'] = max(new_ret.get('MAX(' + str(func[1]) +')', float('-inf')), v[loc])
+                col_names = ['MAX(' + str(func[1]) +')']
+                ret_dtype = ['float']
+                ret = new_ret 
         if distinct:
             distinct_locs = [self._col_index[i] for i in distinct]
             s = set()
