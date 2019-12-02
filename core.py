@@ -52,10 +52,20 @@ class Core:
         else:
             new_tableL = {}
             for i in table_name:
-                new_tableL[i] = self.tables[i]
+                new_tableL[i] = self.get_table(i)
             pickle.dump(new_tableL, f)
             f.close()
             return 0
+    
+    def get_table(self, s: str):
+        if s in self.tables:
+            return self.tables[s]
+        elif s.lower() in self.tables:
+            return self.tables[s.lower()]
+        elif s.upper() in self.tables:
+            return self.tables[s.upper()]
+        else:
+            return False
     
     def execute_select(self, d: dict):
         '''
@@ -190,7 +200,7 @@ class Core:
 
         #cur_table.printall() 
         #print(columns, aggr_func)
-        if columns == ['*']:
+        if select['columns'] == ['*']:
             columns = cur_table._col_names
         else:
             columns = [d['columns'][i] for i in select['columns']]
@@ -214,13 +224,13 @@ class Core:
             'where': ['A', '=', '1']
         }
         '''
-        if d['from'] in self.tables:
-            target = self.tables[d['from']]
+        if self.get_table(d['from']):
+            target = self.get_table(d['from'])
             if target._foreign_key:
                 # A.a REFERENCES B.b
                 # B._foreign_key = [['b', 'A', 'a', self.ONDELETE_CASCADE]]
                 for fk in target._foreign_key:
-                    target_c, ref_t, ref_c, fk_policy = fk[0], self.tables[fk[1]], fk[2], fk[3]
+                    target_c, ref_t, ref_c, fk_policy = fk[0], self.get_table(fk[1]), fk[2], fk[3]
                     target_fk_loc = target._col_names.index(target_c)
                     ref_fk_loc = ref_t._col_names.index(ref_c)
                     to_d = target._delete(d['where'], try_d = True)
@@ -264,8 +274,8 @@ class Core:
             'where': ['C', '=', 5]
         }
         '''
-        if d['update'] in self.tables:
-            target = self.tables[d['update']]
+        if self.get_table(d['update']):
+            target = self.get_table(d['update'])
             target._update(d['set'], d['where'])
     
     def execute_insert(self, d):
@@ -278,8 +288,8 @@ class Core:
             'values': [(1, 2, 3), (4, 5, 6)]
         }
         '''
-        if d['insert_into'] in self.tables:
-            target = self.tables[d['insert_into']]
+        if self.get_table(d['insert_into']):
+            target = self.get_table(d['insert_into'])
             vals = d['values']
             for val in vals:
                 target._insert(val)
@@ -343,8 +353,8 @@ class Core:
             'columns': []
         }
         '''
-        if d['table'] in self.tables:
-            t = self.tables[d['table']]
+        if self.get_table(d['table']):
+            t = self.get_table(d['table'])
             for col in d['columns']:
                 t._create_index(d['name'], col)
         else:
@@ -358,8 +368,8 @@ class Core:
             'index': index_name
         }
         '''
-        if d['table'] in self.tables:
-            self.tables[d['table']]._drop_index(d['index'])
+        if self.get_table(d['table']):
+            self.get_table(d['table'])._drop_index(d['index'])
         else:
             raise Exception('')
         return 0
@@ -428,7 +438,7 @@ class Core:
             target = foreign_key[1]
             fk = [foreign_key[2], name, foreign_key[0], foreign_key[3]]
             if target in self.tables:
-                self.tables[target]._addForeignKeyConstraint(fk)
+                self.get_table(target)._addForeignKeyConstraint(fk)
             else:
                 PrintException.keyError()
                 return -1
@@ -442,7 +452,7 @@ class Core:
         pass
 
     def _drop_table(self, table_name, if_exist = False):
-        if not table_name in self.tables:
+        if not self.get_table(table_name):
             if if_exist:
                 return 0
             else:

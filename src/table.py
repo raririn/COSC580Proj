@@ -178,7 +178,7 @@ class Table:
             else:
                 self._tuples[tuple(keys)] = t
                 for c, tree in self._index.items():
-                    tree.insert(Node(t[self._col_index[c]], keys))
+                    tree.insert(Node(t[self._col_index[c]], tuple(keys)))
         else:
             self._tuples[self.defaultkey] = t
         return 0
@@ -617,7 +617,7 @@ class Table:
                     if t1_tuples[i][loc1] <= t2_tuples[j][loc2]:
                         i += 1
                     else:
-                        for x in range(j):
+                        for x in range(j+1):
                             ret[count] = t1_tuples[i] + t2_tuples[x]
                             count += 1
                         i += 1
@@ -627,7 +627,7 @@ class Table:
                     if t1_tuples[i][loc1] < t2_tuples[j][loc2]:
                         i += 1
                     else:
-                        for x in range(j):
+                        for x in range(j+1):
                             ret[count] = t1_tuples[i] + t2_tuples[x]
                             count += 1
                         i += 1
@@ -637,7 +637,7 @@ class Table:
                     if t1_tuples[i][loc1] >= t2_tuples[j][loc2]:
                         j += 1
                     else:
-                        for x in range(i):
+                        for x in range(i+1):
                             ret[count] = t1_tuples[x] + t2_tuples[j]
                             count += 1
                         i += 1
@@ -647,7 +647,7 @@ class Table:
                     if t1_tuples[i][loc1] > t2_tuples[j][loc2]:
                         j += 1
                     else:
-                        for x in range(i):
+                        for x in range(i+1):
                             ret[count] = t1_tuples[x] + t2_tuples[j]
                             count += 1
                         i += 1
