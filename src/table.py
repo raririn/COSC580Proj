@@ -318,7 +318,8 @@ class Table:
 
         func = None / ['avg', 'colA']
         distinct = ['colA', 'colB', ...]
-        orderby = [['colA', 'colB', ...], desc]
+        X orderby = [['colA', 'colB', ...], desc]
+        orderby = [['colA', desc], ['colB', desc], ...]
         groupby = ['colA', 'colB', ...]
         '''
         ori_col_names = col_names
@@ -529,7 +530,7 @@ class Table:
         a = len(self._tuples)
         b = len(self._tuples)
         if mode == self.JOIN_AUTO:
-            if a * b > 10**7:
+            if a * b > 10**8:
                 mode = self.JOIN_EXTERNALMERGE
             elif a * b >= a*math.log(a) + b*math.log(b) + a + b:
                 mode = self.JOIN_MERGEJOIN

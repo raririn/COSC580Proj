@@ -6,8 +6,8 @@ import re
 
 class Parser:
 
-    def __init__(self, trie, terminate_map = None):
-        self.trie = trie
+    def __init__(self):
+        pass
     
     def _tokenize(self, word):
         if self.trie.search(word):

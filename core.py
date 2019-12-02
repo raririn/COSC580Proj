@@ -67,6 +67,17 @@ class Core:
         else:
             return False
     
+    @staticmethod
+    def get_table_from_dict(s:str, d: dict):
+        if s in d:
+            return d[s]
+        elif s.lower() in d:
+            return d[s.lower()]
+        elif s.upper() in d:
+            return d[s.upper()]
+        else:
+            return False
+    
     def execute_select(self, d: dict):
         '''
         d = {
@@ -118,7 +129,7 @@ class Core:
         if len(joins) == 0:
             # If there is no join, we can assume there is only one table!
             target = d['tables'][query['from'][0]]
-            final_table = runtime_dict[target]
+            final_table = self.get_table_from_dict(target, runtime_dict)
         
             #final_table.printall()
 
@@ -135,10 +146,10 @@ class Core:
             flag_t2_unmodified = False
             
             if isinstance(t1, str):
-                t1 = deepcopy(runtime_dict[t1])
+                t1 = deepcopy(self.get_table_from_dict(t1, runtime_dict))
                 flag_t1_unmodified = True
             if isinstance(t2, str):
-                t2 = deepcopy(runtime_dict[t2])
+                t2 = deepcopy(self.get_table_from_dict(t2, runtime_dict))
                 flag_t2_unmodified = True
             
             if not flag_t1_unmodified:
