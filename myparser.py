@@ -399,6 +399,8 @@ class Parser:
                 op0, op1, op2 = tokens[i], tokens[i + 1], tokens[i + 2]
                 if Parser._is_val(op2):
                     op2 = float(op2)
+                    if int(op2) == op2:
+                        op2 = int(op2)
                 if last_junction:
                     conditions.append([last_junction, [op0, op1, op2]])
                 else:
@@ -423,9 +425,10 @@ class Parser:
             for t in ss:
                 t = t.strip().lstrip('(').rstrip(')')
                 if Parser._is_val(t):
-                    vals.append(float(t))
-                else:
-                    vals.append(t)
+                    t = float(t)
+                    if t == int(t):
+                        t = int(t)
+                vals.append(t)
             return {
                 'type': 'insert',
                 'insert_into': tokens[2],
