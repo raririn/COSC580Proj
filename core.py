@@ -237,7 +237,7 @@ class Core:
 
             junction, condition = i[0], i[1]
             condition[2] = float(condition[2])
-            if junction == 'AND':
+            if junction.upper() == 'AND':
                 cur_table = cur_table._project(condition)
             else:
                 new_t = T._project(condition)
@@ -472,7 +472,7 @@ class Core:
             'if_exist': False,
         }
         '''
-        return self._drop_table(d['name'], d['if_exist'])
+        return self._drop_table(d['name'], False)
     
     def _create_table(self, name: str, col_names: list, dtype: list, primary_key = None, foreign_key = None) -> int:
         '''
