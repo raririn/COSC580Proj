@@ -320,19 +320,19 @@ class Parser:
                         if i + 2 < len(tokens) and tokens[i] == 'on' and tokens[i + 1] == 'delete':
                             i += 2
                             if (i + 1) < len(tokens) and tokens[i] == 'set' and tokens[i + 1].rstrip(',)').strip() == 'null':
-                                on_delete = Table.ONDELETE_SETNULL
+                                on_delete = 'SETNULL'
                                 i += 2
                             elif (i + 1) < len(tokens) and tokens[i] == 'set' and tokens[i + 1].rstrip(',)').strip() == 'default':
-                                on_delete = Table.ONDELETE_SETDEFAULT
+                                on_delete = 'SETDEFAULT'
                                 i += 2
                             elif (i + 1) < len(tokens) and tokens[i] == 'no' and tokens[i + 1].rstrip(',)').strip() == 'action':
-                                on_delete = Table.ONDELETE_NOACTION
+                                on_delete = 'NOACTION'
                                 i += 2
                             elif i < len(tokens) and tokens[i].rstrip(',)').strip() == 'cascade':
-                                on_delete = Table.ONDELETE_CASCADE
+                                on_delete = 'CASCADE'
                                 i += 1
                             elif i < len(tokens) and tokens[i].rstrip(',)').strip() == 'restrict':
-                                on_delete = Table.ONDELETE_RESTRICT
+                                on_delete = 'RESTRICT'
                                 i += 1
                             else:
                                 PrintException.syntaxError()
@@ -451,6 +451,10 @@ class Parser:
                     last_junction = tokens[i]
                     i += 1
                 op0, op1, op2 = tokens[i], tokens[i + 1], tokens[i + 2]
+                if Parser._is_val(op2):
+                    op2 = float(op2)
+                    if int(op2) == op2:
+                        op2 = int(op2)
                 if last_junction:
                     res['where'].append([last_junction, [op0, op1, op2]])
                 else:

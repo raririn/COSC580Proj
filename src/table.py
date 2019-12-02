@@ -104,24 +104,21 @@ class Table:
             print(k, v)
     
     def formatout(self):
-        for i in self._col_names:
-            print(i, end = ' ')
-        print('\n')
+        print(self._col_names)
         keys = sorted([k for k, _ in self._tuples.items()])
         for i in keys:
-            for j in self._tuples[i]:
-                print(j, end = ' ')
-            print('\n')
+            print(self._tuples[i])
+        print('%d columns, %d rows' % (len(self._col_names), len(self._tuples)))
     
-    def head(self):
+    def head(self, lines = 5):
         print('Table <%s>' % self.name)
         print('%d columns, %d rows' % (len(self._col_names), len(self._tuples)))
-        print([self._col_names[i] + ': ' + self._dtype[i] for i in range(self.col)])
+        print([self._col_names[i] for i in range(self.col)])
         count = 0
         for k, v in self._tuples.items():
-            print(k, v)
+            print(v)
             count += 1
-            if count == 5:
+            if count == lines:
                 break        
 
 
@@ -566,13 +563,12 @@ class Table:
             sort_b = b
             if condition[2] not in other._indexed_cols:
                 sort_b *= math.log2(b)
-            if a * b > 10**7:
+            if a * b > 5*(10**7):
                 mode = self.JOIN_EXTERNALMERGE
             elif a * b >= sort_a + sort_b + a + b:
                 mode = self.JOIN_MERGEJOIN
             else:
                 mode = self.JOIN_NESTEDLOOP
-
         if mode == self.JOIN_NESTEDLOOP:
             count = 0
             ret = {}

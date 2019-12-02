@@ -4,6 +4,6 @@ class DB:
         self.name = name
         self.tables = {}
 
-    def updateTable(table: dict):
+    def updateTable(self, table: dict):
         self.tables = table
     

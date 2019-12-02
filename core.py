@@ -9,6 +9,7 @@ from worker import Worker
 
 from copy import deepcopy
 import pickle
+import time
 
 class Core:
 
@@ -29,6 +30,10 @@ class Core:
         '''
 
         self.parser = Parser()
+
+        self.head_lines = 5
+        self.printall = False
+        self.return_time = False
     
     # W
     def _constructTrie(self):
@@ -77,29 +82,42 @@ class Core:
             return False
     
     def handler(self, s: str):
-        d = self.parser.parse(s)
-        if d['type'] == 'select':
-            self.execute_select(d)
-        elif d['type'] == 'delete':
-            self.execute_delete(d)
-        elif d['type'] == 'insert':
-            self.execute_insert(d)
-        elif d['type'] == 'create_db':
-            self.execute_create_db
-        elif d['type'] == 'drop_db':
-            self.execute_drop_db
-        elif d['type'] == 'create_table':
-            self.execute_create_table
-        elif d['type'] == 'drop_table':
-            self.execute_drop_table
-        elif d['type'] == 'create_index':
-            self.execute_create_index
-        elif d['type'] == 'drop_index':
-            self.execute_drop_index
-        elif d['type'] == 'use_db':
-            self.execute_use_db
+        if self.return_time:
+            t = time.time()
+
+        if ';' in s:
+            s = s.split(';')
         else:
-            raise Exception('')
+            s = [s]
+        for i in s:
+            d = self.parser.parse(i)
+            if d['type'] == 'select':
+                if self.printall:
+                    self.execute_select(d).formatout()
+                else:
+                    self.execute_select(d).head(self.head_lines)
+            elif d['type'] == 'delete':
+                self.execute_delete(d)
+            elif d['type'] == 'insert':
+                self.execute_insert(d)
+            elif d['type'] == 'create_db':
+                self.execute_create_db(d)
+            elif d['type'] == 'drop_db':
+                self.execute_drop_db(d)
+            elif d['type'] == 'create_table':
+                self.execute_create_table(d)
+            elif d['type'] == 'drop_table':
+                self.execute_drop_table(d)
+            elif d['type'] == 'create_index':
+                self.execute_create_index(d)
+            elif d['type'] == 'drop_index':
+                self.execute_drop_index(d)
+            elif d['type'] == 'use_db':
+                self.execute_use_db(d)
+            else:
+                raise Exception('')
+        if self.return_time:
+            print('Executing queries takes %s seconds.' % (time.time() - t))       
     
     def execute_select(self, d: dict):
         '''
@@ -222,8 +240,11 @@ class Core:
                 new_t = T._project(condition)
                 cur_table = cur_table._union(new_t)
 
-        aggr_func = select['aggr_func'][0]
-        print(aggr_func)
+        if select['aggr_func']:
+            aggr_func = select['aggr_func'][0]
+        else:
+            aggr_func = select['aggr_func']
+
         if len(aggr_func) == 0:
             aggr_func = None
         else:
@@ -266,10 +287,13 @@ class Core:
                 # B._foreign_key = [['b', 'A', 'a', self.ONDELETE_CASCADE]]
                 for fk in target._foreign_key:
                     target_c, ref_t, ref_c, fk_policy = fk[0], self.get_table(fk[1]), fk[2], fk[3]
+                    if len(target_c) == 1:
+                        target_c = target_c[0]
+                    if len(ref_c) == 1:
+                        ref_c = ref_c[0]
                     target_fk_loc = target._col_names.index(target_c)
                     ref_fk_loc = ref_t._col_names.index(ref_c)
-                    to_d = target._delete(d['where'], try_d = True)
-                    ref_t.printall()
+                    to_d = target._delete(d['where'][0][1], try_d = True)
                     if fk_policy == Table.ONDELETE_NOACTION or fk_policy == Table.ONDELETE_RESTRICT:
                         for _, v in ref_t._tuples.items():
                             for j in to_d:
@@ -277,7 +301,7 @@ class Core:
                                     return -1
                     elif fk_policy == Table.ONDELETE_CASCADE:
                         del_list =[]
-                        for k, v in ref_t._tuples():
+                        for k, v in ref_t._tuples.items():
                             for j in to_d:
                                 if v[ref_fk_loc] == j[target_fk_loc]:
                                     del_list.append(k)
@@ -285,14 +309,15 @@ class Core:
                             ref_t._tuples.pop(i)
                     elif fk_policy == Table.ONDELETE_SETNULL:
                         del_list =[]
-                        for k, v in ref_t._tuples():
+                        for k, v in ref_t._tuples.items():
                             for j in to_d:
                                 if v[ref_fk_loc] == j[target_fk_loc]:
                                     del_list.append(k)
                         for i in del_list:
                             ref_t._tuples[i][ref_fk_loc] = None
+                target._delete(d['where'][0][1])  
             else:
-                target._delete(d['where'])                            
+                target._delete(d['where'][0][1])                            
         else:
             raise Exception('')
         return 0
@@ -354,8 +379,9 @@ class Core:
         }
         '''
         if d['name'] in self.db:
-            # Save to old db
-            self.db[self.currentDB].updateTable(self.tables)
+            if self.tables:
+                # Save to old db
+                self.db[self.currentDB].updateTable(self.tables)
 
             # Go to new db
             self.currentDB = d['name']
@@ -420,18 +446,21 @@ class Core:
 
         If not specified, the last field in d['foreign_key'] can be None.
         '''
-        if len(d['foreign_key']) == 4:
-            if not d['foreign_key'][3] or d['foreign_key'][3] == 'NOACTION':
-                fk = [d['foreign_key'][0], d['foreign_key'][1], d['foreign_key'][2], Table.ONDELETE_NOACTION]
-            elif d['foreign_key'][3] == 'CASCADE':
-                fk = [d['foreign_key'][0], d['foreign_key'][1], d['foreign_key'][2], Table.ONDELETE_CASCADE]
-            elif d['foreign_key'][3] == 'SETNULL':
-                fk = [d['foreign_key'][0], d['foreign_key'][1], d['foreign_key'][2], Table.ONDELETE_SETNULL]
+        fks = []
+        for fk in d['foreign_key']:
+            if len(fk) == 4:
+                if not fk[3] or fk[3] == 'NOACTION':
+                    fks.append([fk[0], fk[1], fk[2], Table.ONDELETE_NOACTION])
+                elif fk[3] == 'CASCADE':
+                    fks.append([fk[0], fk[1], fk[2], Table.ONDELETE_CASCADE])
+                elif fk[3] == 'SETNULL':
+                    fks.append([fk[0], fk[1], fk[2], Table.ONDELETE_SETNULL])
+                else:
+                    raise Exception
             else:
-                fk = d['foreign_key']
-        else:
-            fk = None
-        return self._create_table(d['name'], d['col_names'], d['dtype'], d['primary_key'], fk)
+                raise Exception('')
+
+        return self._create_table(d['name'], d['col_names'], d['dtype'], d['primary_key'], fks)
     
     def execute_drop_table(self, d):
         '''
@@ -460,16 +489,15 @@ class Core:
         if name in self.tables:
             PrintException.keyError('_create_table')
             return -1
-        if foreign_key and not foreign_key[3]:
-            foreign_key = [foreign_key[0], foreign_key[1], foreign_key[2], Table.ONDELETE_NOACTION]
         if foreign_key:
-            target = foreign_key[1]
-            fk = [foreign_key[2], name, foreign_key[0], foreign_key[3]]
-            if target in self.tables:
-                self.get_table(target)._addForeignKeyConstraint(fk)
-            else:
-                PrintException.keyError()
-                return -1
+            for key in foreign_key:
+                target = key[1]
+                fk = [key[2], name, key[0], key[3]]
+                if target in self.tables:
+                    self.get_table(target)._addForeignKeyConstraint(fk)
+                else:
+                    PrintException.keyError()
+                    return -1
 
         self.tables[name] = Table.createTable(name, col_names = col_names, dtype = dtype, primary_key = primary_key)
         return 0
