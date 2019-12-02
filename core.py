@@ -21,14 +21,14 @@ class Core:
         #self.trie = self._constructTrie()
         #self.parser = Parser(self.trie)
         self.db = {}
-        self.currentDB = None
+        self.currentDB = 'defaultdb'
         self.tables = {}
         '''
         self.tables['Employee'] = <'Table' object at ...>
         self.tables['Company'] = <'Table' object at ...>
         '''
 
-        self._run()
+        self.parser = Parser()
     
     # W
     def _constructTrie(self):
@@ -40,22 +40,20 @@ class Core:
         trie.insertList(tuple(map(lambda x: x.lower(), [str(member) for name, member in lh.SQLOperator.__members__.items()])), self.terminate_map['Operator'])
         return trie
     
-    def _dump_table(self, file_path: str, table_name = 0):
-        if isinstance(table_name, str):
-            table_name = [table_name]
-
+    def _dump_db(self, file_path: str):
+        new_db = DB(self.currentDB)
+        new_db.tables = self.tables
+        self.db[self.currentDB] = new_db
         f = open(file_path, 'wb')
-        if table_name == Core.DUMP_DUMPALL:
-            pickle.dump(self.tables, f)
-            f.close()
-            return 0
-        else:
-            new_tableL = {}
-            for i in table_name:
-                new_tableL[i] = self.get_table(i)
-            pickle.dump(new_tableL, f)
-            f.close()
-            return 0
+        pickle.dump(self.db[self.currentDB], f)
+        f.close()
+        return 0
+
+    def _load_db(self, file_path: str):
+        with open(file_path, 'rb') as f:
+            db_f = pickle.load(f)
+        self.db[db_f.name] = db_f
+        return 0
     
     def get_table(self, s: str):
         if s in self.tables:
@@ -77,6 +75,31 @@ class Core:
             return d[s.upper()]
         else:
             return False
+    
+    def handler(self, s: str):
+        d = self.parser.parse(s)
+        if d['type'] == 'select':
+            self.execute_select(d)
+        elif d['type'] == 'delete':
+            self.execute_delete(d)
+        elif d['type'] == 'insert':
+            self.execute_insert(d)
+        elif d['type'] == 'create_db':
+            self.execute_create_db
+        elif d['type'] == 'drop_db':
+            self.execute_drop_db
+        elif d['type'] == 'create_table':
+            self.execute_create_table
+        elif d['type'] == 'drop_table':
+            self.execute_drop_table
+        elif d['type'] == 'create_index':
+            self.execute_create_index
+        elif d['type'] == 'drop_index':
+            self.execute_drop_index
+        elif d['type'] == 'use_db':
+            self.execute_use_db
+        else:
+            raise Exception('')
     
     def execute_select(self, d: dict):
         '''
@@ -419,12 +442,6 @@ class Core:
         '''
         return self._drop_table(d['name'], d['if_exist'])
     
-    def _load_table(self, file_path: str):
-        pass
-
-    def _run(self):
-        self.parser = Parser()
-
     def _create_table(self, name: str, col_names: list, dtype: list, primary_key = None, foreign_key = None) -> int:
         '''
         e.g.

@@ -300,7 +300,7 @@ class Parser:
                         if tokens[i] == ',':
                             i += 1
                             continue
-                        elif re.macth(",", tokens[i]):
+                        elif re.match(",", tokens[i]):
                             tokens[i] = tokens[i][1:]
                         if tokens[i] == 'primary':
                             if tokens[i + 1] != 'key':
