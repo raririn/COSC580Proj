@@ -1,6 +1,7 @@
 from utils.myexception import PrintException
 from src.table import Table
 import re
+import time
 
 class Parser:
 
@@ -32,7 +33,8 @@ class Parser:
                     'orderby': []
                 },
                 'tables': {},
-                'columns': {}
+                'columns': {},
+                'subquery': {}
             }
             i = 1
             distinct = False
@@ -55,9 +57,9 @@ class Parser:
                     else:
                         subquery.append(tokens[i][:-1])
                     i += 1
-                    temp = self.evaluate(self.parse_tokens(subquery))
-                    res['tables'][temp.name] = temp
-                    ss += temp.name + ' '
+                    temp = str(time.time())
+                    res['subquery'][temp] = subquery
+                    ss += temp + ' '
                 else:
                     ss += tokens[i] + ' '
                     i += 1
@@ -128,9 +130,9 @@ class Parser:
                     else:
                         subquery.append(tokens[i][:-1])
                     i += 1
-                    temp = self.evaluate(self.parse_tokens(subquery))
-                    res['tables'][temp.name] = temp
-                    ss += temp.name + ' '
+                    temp = str(time.time())
+                    res['subquery'][temp] = subquery
+                    ss += temp + ' '
                 else:
                     ss += tokens[i] + ' '
                     i += 1
