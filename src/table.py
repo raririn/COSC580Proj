@@ -528,11 +528,17 @@ class Table:
         *: Assign new keys to the joined table.
         '''
         a = len(self._tuples)
-        b = len(self._tuples)
+        b = len(other._tuples)
         if mode == self.JOIN_AUTO:
-            if a * b > 10**8:
+            sort_a = a
+            if condition[0] not in self._indexed_cols:
+                sort_a *= math.log2(a)
+            sort_b = b
+            if condition[2] not in other._indexed_cols:
+                sort_b *= math.log2(b)
+            if a * b > 10**7:
                 mode = self.JOIN_EXTERNALMERGE
-            elif a * b >= a*math.log(a) + b*math.log(b) + a + b:
+            elif a * b >= sort_a + sort_b + a + b:
                 mode = self.JOIN_MERGEJOIN
             else:
                 mode = self.JOIN_NESTEDLOOP
