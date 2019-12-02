@@ -437,13 +437,11 @@ class Table:
                     s.add(v)
             ret = new_ret
 
-        # Note that groupby is prior to orderby!
         if orderby:
-            locs, desc_flag = [self._col_index[i] for i in orderby[0]], orderby[1]
-            if desc_flag:
-                vals = sorted([v for _, v in ret.items()], key = lambda x: tuple([x[i] for i in locs]), reverse = True)
-            else:
-                vals = sorted([v for _, v in ret.items()], key = lambda x: tuple([x[i] for i in locs]), reverse = False)
+            locs = [new_col_names.index(i[0]) for i in orderby]
+            desc_flags = [1 if i[1] else -1 for i in orderby]
+            print(locs, desc_flags, orderby, self._col_names)
+            vals = sorted([v for _, v in ret.items()], key = lambda x: tuple( x[locs[i]] * desc_flags[i] for i in range(len(locs))))
             new_ret = {}
             count = 0
             for i in range(len(vals)):
