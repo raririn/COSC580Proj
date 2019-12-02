@@ -6,8 +6,8 @@ import re
 
 class Parser:
 
-    def __init__(self):
-        pass
+    def __init__(self, trie, terminate_map = None):
+        self.trie = trie
     
     def _tokenize(self, word):
         if self.trie.search(word):
@@ -283,7 +283,7 @@ class Parser:
                 return {'name': tokens[2]}
             elif tokens[1] == 'table':
                 res = {
-                    'name': tokens[2],
+                    'name': tokens[2].strip().rstrip(')'),
                     'col_names': [],
                     'dtype': [],
                     'primary_key': [],
@@ -291,88 +291,77 @@ class Parser:
                 }
                 if tokens[3] == 'as':
                     temp_table = self.evaluate(self.parse_tokens(tokens[4:]))
-
                 else:
                     i = 3
-                    if re.match("^\\(", tokens[i]):
-                        tokens[i] = tokens[i][1:]
-                    while i < len(tokens):
-                        if tokens[i] == ',':
+                    ss = ''
+                    while i < len(tokens) and tokens[i] != 'primary' and tokens[i] != 'foreign' and tokens[i] != ')':
+                        ss += tokens[i] + ' '
+                        i += 1
+                    cols = re.split(",", ss.rstrip(' )').rstrip(' ,').lstrip(' ,()'))
+                    for col in cols:
+                        s = re.split("\\s", col.strip())
+                        res['col_names'].append(s[0])
+                        res['dtype'].append(s[1])
+                    if i < len(tokens) and tokens[i] == 'primary':
+                        if tokens[i + 1] != 'key':
+                            PrintException.syntaxError()
+                            raise SyntaxError('')
+                        i += 2
+                        ss = ''
+                        while i < len(tokens) and tokens[i] != 'foreign':
+                            ss += tokens[i] + ' '
                             i += 1
-                            continue
-                        elif re.match(",", tokens[i]):
-                            tokens[i] = tokens[i][1:]
-                        if tokens[i] == 'primary':
-                            if tokens[i + 1] != 'key':
-                                PrintException.syntaxError()
-                                raise SyntaxError('')
+                        cols = re.split(",", ss.rstrip(' ,)').lstrip(' ,('))
+                        for col in cols:
+                            res['primary_key'].append(col.strip())
+                    while i < len(tokens) and tokens[i] == 'foreign':
+                        if tokens[i + 1] != 'key':
+                            PrintException.syntaxError()
+                            raise SyntaxError('')
+                        i += 2
+                        ss = ''
+                        while i < len(tokens) and tokens[i] != 'references':
+                            ss += tokens[i] + ' '
+                            i += 1
+                        cols = re.split(",", ss.rstrip(' )').lstrip(' ('))
+                        self_cols = []
+                        for col in cols:
+                            self_cols.append(col.strip())
+                        
+                        i += 1
+                        ss = ''
+                        while i < len(tokens) and tokens[i] != 'on':
+                            ss += tokens[i] + ' '
+                            i += 1
+                        table, cols = re.split("\\(", ss.rstrip(' )').strip())
+                        foreign_cols = []
+                        for col in re.split(",", cols.strip()):
+                            foreign_cols.append(col.strip())
+                        on_delete = 0
+                        if i + 2 < len(tokens) and tokens[i] == 'on' and tokens[i + 1] == 'delete':
                             i += 2
-                            while i < len(tokens) and not re.search("\\)", tokens[i]):
-                                res['primary_key'].append(tokens[i].strip('(,'))
+                            if (i + 1) < len(tokens) and tokens[i] == 'set' and tokens[i + 1].rstrip(',)').strip() == 'null':
+                                on_delete = Table.ONDELETE_SETNULL
+                                i += 2
+                            elif (i + 1) < len(tokens) and tokens[i] == 'set' and tokens[i + 1].rstrip(',)').strip() == 'default':
+                                on_delete = Table.ONDELETE_SETDEFAULT
+                                i += 2
+                            elif (i + 1) < len(tokens) and tokens[i] == 'no' and tokens[i + 1].rstrip(',)').strip() == 'action':
+                                on_delete = Table.ONDELETE_NOACTION
+                                i += 2
+                            elif i < len(tokens) and tokens[i].rstrip(',)').strip() == 'cascade':
+                                on_delete = Table.ONDELETE_CASCADE
                                 i += 1
-                            if i < len(tokens):
-                                s = tokens[i].strip('),')
-                                if len(s) > 0:
-                                    res['primary_key'].append(s)
+                            elif i < len(tokens) and tokens[i].rstrip(',)').strip() == 'restrict':
+                                on_delete = Table.ONDELETE_RESTRICT
                                 i += 1
-                        elif tokens[i] == 'foreign':
-                            if tokens[i + 1] != 'key':
-                                PrintException.syntaxError()
-                                raise SyntaxError('')
-                            i += 2
-                            s = ''
-                            while i < len(tokens) and tokens[i] != 'references':
-                                s += tokens[i]
-                                i += 1
-                            s = s.strip('()')
-                            s = s.rstrip(',')
-                            foreign_keys = re.split(",")
-                            if i < len(tokens):
-                                i += 1
-                                s = ''
-                                while i < len(tokens) and not re.search("\\)", tokens[i]):
-                                    s += tokens[i]
-                                    i += 1
-                                s += tokens[i]
-                                i += 1
-                                s = s.rstrip(',')
-                                parts = re.split("\\(", s)
-                                table = parts[0]
-                                s = parts[1].strip(')')
-                                parts = re.split(",", s)
-                                if i < len(tokens) and tokens[i] == ',':
-                                    i += 1
-                                on_delete = 0
-                                if i + 2 < len(tokens) and tokens[i] == 'on' and tokens[i + 1] == 'delete':
-                                    i += 2
-                                    if (i + 1) < len(tokens):
-                                        if tokens[i] == 'set' and tokens[i + 1] == 'null':
-                                            on_delete = Table.ONDELETE_SETNULL
-                                        elif tokens[i] == 'set' and tokens[i + 1] == 'default':
-                                            on_delete = Table.ONDELETE_SETDEFAULT
-                                        elif tokens[i] == 'no' and tokens[i + 1] == 'action':
-                                            on_delete = Table.ONDELETE_NOACTION
-                                    if tokens[i] == 'cascade':
-                                        on_delete = Table.ONDELETE_CASCADE
-                                    elif tokens[i] == 'restrict':
-                                        on_delete = Table.ONDELETE_RESTRICT
-                                    else:
-                                        PrintException.syntaxError()
-                                        raise SyntaxError('')
-                                else:
-                                    PrintException.syntaxError()
-                                    raise SyntaxError('')
-                                res['foreign_key'].append([foreign_keys, table, parts, on_delete])
                             else:
                                 PrintException.syntaxError()
                                 raise SyntaxError('')
                         else:
-                            res['col_names'].append(tokens[i])
-                            if re.match(",$", tokens[i + 1]):
-                                res['dtype'].append(tokens[i + 1][:-1])
-                            else:
-                                res['dtype'].append(tokens[i + 1])
-                            i += 2
+                            PrintException.syntaxError()
+                            raise SyntaxError('')
+                        res['foreign_key'].append([self_cols, table, foreign_cols, on_delete])
                 return res
             elif tokens[1] == 'index':
                 index_name = tokens[2]
