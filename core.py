@@ -155,6 +155,9 @@ class Core:
         runtime_dict = deepcopy(self.tables)
         # ^^^^
         
+        for name, subquery in query['subquery'].items():
+            runtime_dict[name] = self.execute_select(self.parser.parse_tokens(subquery))
+        
         joins = query['where']['joins']
         conditions = query['where']['conditions']
         select = query['select']
