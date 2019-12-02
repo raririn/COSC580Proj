@@ -6,8 +6,8 @@ import re
 
 class Parser:
 
-    def __init__(self):
-        pass
+    def __init__(self, trie, terminate_map = None):
+        self.trie = trie
     
     def _tokenize(self, word):
         if self.trie.search(word):
@@ -31,7 +31,7 @@ class Parser:
         return list(map(self._tokenize, parts))
 
     def parse(self, string):
-        tokens = re.split("\\s", string)
+        tokens = re.split("\\s", string.strip())
         for i in range(len(tokens)):
             tokens[i] = tokens[i].lower()
         return self.parse_tokens(tokens)
@@ -56,12 +56,12 @@ class Parser:
                 'tables': {},
                 'columns': {}
             }
-            cols = []
             i = 1
             distinct = False
             if tokens[1] == "distinct":
                 i += 1
                 distinct = True
+            ss = ''
             while i < len(tokens) and tokens[i] != "from":
                 if re.match("^\\(.*", tokens[i]):
                     subquery = []
@@ -79,45 +79,19 @@ class Parser:
                     i += 1
                     temp = self.evaluate(self.parse_tokens(subquery))
                     res['tables'][temp.name] = temp
-                    cols.append(temp.name + ",")
+                    ss += temp.name + ' '
                 else:
-                    cols.append(tokens[i])
+                    ss += tokens[i] + ' '
                     i += 1
             
-            k = 0
-            prev = ''
-            while k < len(cols):
-                j = 0
-                s = []
-                if len(prev) > 0:
-                    s.append(prev)
-                while j < len(cols) and ',' not in cols[j]:
-                    s.append(cols[j])
-                    j += 1
-                if j < len(cols):
-                    tmp = re.split(",", cols[j])
-                else:
-                    tmp = ['']
-                if len(tmp[0]) > 0:
-                    s.append(tmp[0])
-                if len(s) > 4 or len(s) < 1:
+            cols = re.split(",", ss.strip())
+            for col in cols:
+                s = re.split("\\s", col.strip())
+                if len(s) > 3 or len(s) < 1:
                     PrintException.syntaxError()
                     raise SyntaxError('')
-                elif len(s) == 4:
-                    if not re.search("count", s[0]) or not re.search("distinct", s[0]) or s[2] != "as":
-                        PrintException.syntaxError()
-                        raise SyntaxError('')
-                    res['query']['select']['columns'].append(s[3])
-                    res['query']['select']['distinct'].append(s[3])
-                    res['query']['select']['aggr_func'].append(['count', s[3]])
-                    res['columns'][s[3]] = s[1][:-1]
                 elif len(s) == 3:
-                    if re.search("distinct", s[0]):
-                        res['query']['select']['columns'].append(s[2])
-                        res['query']['select']['distinct'].append(s[2])
-                        res['query']['select']['aggr_func'].append(['count', s[2]])
-                        res['columns'][s[2]] = s[1][:-1]
-                    elif s[1] != "as":
+                    if s[1] != "as":
                         PrintException.syntaxError()
                         raise SyntaxError('')
                     elif re.search("\\(", s[0]):
@@ -158,30 +132,8 @@ class Parser:
                         res['columns'][s[0]] = s[0]
                         if distinct:
                             res['query']['select']['distinct'].append(s[0])
-                
-                if len(tmp) == 1:
-                    prev = ''
-                elif len(tmp) == 2:
-                    prev = tmp[1]
-                else:
-                    prev = tmp[-1]
-                    for i in range(1, len(tmp) - 1):
-                        if re.search("\\(", tmp[i]):
-                            parts = re.split("[\\(\\)]", tmp[i])
-                            res['query']['select']['aggr_func'].append([parts[0], parts[1]])
-                            res['query']['select']['columns'].append(parts[1])
-                            res['columns'][parts[1]] = parts[1]
-                            if distinct:
-                                res['query']['select']['distinct'].append(parts[1])
-                        else:
-                            res['query']['select']['columns'].append(tmp[i])
-                            res['columns'][tmp[i]] = tmp[i]
-                            if distinct:
-                                res['query']['select']['distinct'].append(tmp[i])
-                
-                k = j + 1
             
-            tables = []
+            ss = ''
             i += 1
             while i < len(tokens) and tokens[i] != "where":
                 if re.match("^\\(.*", tokens[i]):
@@ -200,29 +152,18 @@ class Parser:
                     i += 1
                     temp = self.evaluate(self.parse_tokens(subquery))
                     res['tables'][temp.name] = temp
-                    tables.append(temp.name + ",")
+                    ss += temp.name + ' '
                 else:
-                    tables.append(tokens[i])
+                    ss += tokens[i] + ' '
                     i += 1
             
-            k = 0
-            prev = ''
-            while k < len(tables):
-                j = 0
-                s = []
-                if len(prev) > 0:
-                    s.append(prev)
-                while j < len(tables) and ',' not in tables[j]:
-                    s.append(tables[j])
-                    j += 1
-                if j < len(tables):
-                    tmp = re.split(",", tables[j])
-                else:
-                    tmp = ['']
-                if len(tmp[0]) > 0:
-                    s.append(tmp[0])
-                
-                if len(s) == 3:
+            tables = re.split(",", ss.strip())
+            for table in tables:
+                s = re.split("\\s", table.strip())
+                if len(s) > 3 or len(s) < 1:
+                    PrintException.syntaxError()
+                    raise SyntaxError('')
+                elif len(s) == 3:
                     if s[1] != "as":
                         PrintException.syntaxError()
                         raise SyntaxError('')
@@ -235,18 +176,6 @@ class Parser:
                 elif len(s) == 1:
                     res['query']['from'].append(s[0])
                     res['tables'][s[0]] = s[0]
-                
-                if len(tmp) == 1:
-                    prev = ''
-                elif len(tmp) == 2:
-                    prev = tmp[1]
-                else:
-                    prev = tmp[-1]
-                    for i in range(1, len(tmp) - 1):
-                        res['query']['from'].append(tmp[i])
-                        res['tables'][tmp[i]] = tmp[i]
-                
-                k = j + 1
             
             i += 1
             last_junction = None
@@ -268,98 +197,75 @@ class Parser:
                 if tokens[i] == "group":
                     i += 2
                     if i < len(tokens) and tokens[i] != "order":
+                        ss = ''
                         while i < len(tokens) and tokens[i] != "order":
-                            parts = re.split(",", tokens[i])
-                            for part in parts:
-                                if len(part) > 0:
-                                    res['query']['groupby'].append(part)
+                            ss += tokens[i] + ' '
                             i += 1
+                        parts = re.split(",", ss.strip())
+                        for part in parts:
+                            s = part.strip()
+                            if len(s) > 0:
+                                res['query']['groupby'].append(s)
                     else:
                         PrintException.syntaxError()
                         raise SyntaxError('')
                     i += 2
                     if i < len(tokens):
-                        if tokens[i] != "group":
-                            s = []
-                            while i < len(tokens) and tokens[i] != "group":
-                                if "," in tokens[i]:
-                                    parts = re.split(",", tokens[i])
-                                    if len(parts[0]) > 0:
-                                        if parts[0] == "asc" or parts[0] == "desc":
-                                            for c in s:
-                                                res['query']['orderby'].append([c, parts[0] == "asc"])
-                                            s = []
-                                        else:
-                                            for c in s:
-                                                res['query']['orderby'].append([c, True])
-                                            s = []
-                                            s.append(parts[0])
-                                        for l in range(1, len(parts)):
-                                            if len(parts[l]) > 0:
-                                                s.append(parts[l])
-                                    else:
-                                        for c in s:
-                                            res['query']['orderby'].append([c, True])
-                                        s = []
-                                        for l in range(1, len(parts)):
-                                            if len(parts[l]) > 0:
-                                                s.append(parts[l])
+                        ss = ''
+                        while i < len(tokens) and tokens[i] != 'group':
+                            ss += tokens[i] + ' '
+                            i += 1
+                        parts = re.split(",", ss.strip())
+                        for part in parts:
+                            s = re.split("\\s", part.strip())
+                            if len(s) > 2 or len(s) < 1:
+                                PrintException.syntaxError()
+                                raise SyntaxError('')
+                            elif len(s) == 2:
+                                if s[1] == 'asc' or s[1] == 'desc':
+                                    res['query']['orderby'].append([s[0], s[1] == 'asc'])
                                 else:
-                                    if tokens[i] == "asc" or tokens[i] == "desc":
-                                        for c in s:
-                                            res['query']['orderby'].append([c, tokens[i] == "asc"])
-                                        s = []
-                                    else:
-                                        s.append(tokens[i])
-                        else:
-                            PrintException.syntaxError()
-                            raise SyntaxError('')
+                                    PrintException.syntaxError()
+                                    raise SyntaxError('')
+                            elif len(s) == 1:
+                                res['query']['orderby'].append([s[0], True])
+                
                 elif tokens[i] == "order":
                     i += 2
-                    if i < len(tokens) and tokens[i] != "group":
-                        s = []
-                        while i < len(tokens) and tokens[i] != "group":
-                            if "," in tokens[i]:
-                                parts = re.split(",", tokens[i])
-                                if len(parts[0]) > 0:
-                                    if parts[0] == "asc" or parts[0] == "desc":
-                                        for c in s:
-                                            res['query']['orderby'].append([c, parts[0] == "asc"])
-                                        s = []
-                                    else:
-                                        for c in s:
-                                            res['query']['orderby'].append([c, True])
-                                        s = []
-                                        s.append(parts[0])
-                                    for l in range(1, len(parts)):
-                                        if len(parts[l]) > 0:
-                                            s.append(parts[l])
+                    if i < len(tokens) and tokens[i] != 'group':
+                        ss = ''
+                        while i < len(tokens) and tokens[i] != 'group':
+                            ss += tokens[i] + ' '
+                            i += 1
+                        parts = re.split(",", ss.strip())
+                        for part in parts:
+                            s = re.split("\\s", part.strip())
+                            if len(s) > 2 or len(s) < 1:
+                                PrintException.syntaxError()
+                                raise SyntaxError('')
+                            elif len(s) == 2:
+                                if s[1] == 'asc' or s[1] == 'desc':
+                                    res['query']['orderby'].append([s[0], s[1] == 'asc'])
                                 else:
-                                    for c in s:
-                                        res['query']['orderby'].append([c, True])
-                                    s = []
-                                    for l in range(1, len(parts)):
-                                        if len(parts[l]) > 0:
-                                            s.append(parts[l])
-                            else:
-                                if tokens[i] == "asc" or tokens[i] == "desc":
-                                    for c in s:
-                                        res['query']['orderby'].append([c, tokens[i] == "asc"])
-                                    s = []
-                                else:
-                                    s.append(tokens[i])
+                                    PrintException.syntaxError()
+                                    raise SyntaxError('')
+                            elif len(s) == 1:
+                                res['query']['orderby'].append([s[0], True])
                     else:
                         PrintException.syntaxError()
                         raise SyntaxError('')
                     i += 2
                     if i < len(tokens):
                         if tokens[i] != "order":
+                            ss = ''
                             while i < len(tokens) and tokens[i] != "order":
-                                parts = re.split(",", tokens[i])
-                                for part in parts:
-                                    if len(part) > 0:
-                                        res['query']['groupby'].append(part)
+                                ss += tokens[i] + ' '
                                 i += 1
+                            parts = re.split(",", ss.strip())
+                            for part in parts:
+                                s = part.strip()
+                                if len(s) > 0:
+                                    res['query']['groupby'].append(s)
                         else:
                             PrintException.syntaxError()
                             raise SyntaxError('')
@@ -480,14 +386,7 @@ class Parser:
                 parts = re.split(",", s)
                 cols = []
                 for part in parts:
-                    if re.match("^\\(.*\\)$", part):
-                        cols.append(part[1:-1])
-                    elif re.match("^\\(", part):
-                        cols.append(part[1:])
-                    elif re.match("\\)$", part):
-                        cols.append(part[:-1])
-                    else:
-                        cols.append(part)
+                    cols.append(part.strip('()'))
                 return {'name': index_name, 'table': table_name, 'columns': cols}
             else:
                 PrintException.syntaxError()
