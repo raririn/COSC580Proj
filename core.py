@@ -90,7 +90,11 @@ class Core:
         else:
             s = [s]
         for i in s:
-            d = self.parser.parse(i)
+            try:
+                d = self.parser.parse(i)
+            except:
+                PrintException.handlerError()
+                return
             if d['type'] == 'select':
                 if self.printall:
                     self.execute_select(d).formatout()
@@ -115,7 +119,7 @@ class Core:
             elif d['type'] == 'use_db':
                 self.execute_use_db(d)
             else:
-                raise Exception('')
+                PrintException.handlerError()
         if self.return_time:
             print('Executing queries takes %s seconds.' % (time.time() - t))       
     

@@ -1,3 +1,5 @@
+import logging
+
 class PrintException:
 
     @staticmethod
@@ -19,3 +21,7 @@ class PrintException:
     @staticmethod
     def syntaxError():
         print('s')
+
+    @staticmethod
+    def handlerError():
+        logging.info('Handler can\'t execute the input.')
