@@ -25,10 +25,7 @@ class AVLTree:
         return lst
 
     def delete(self, val, key):
-        if isinstance(key, set):
-            self._root = self._delete(self._root, val, key)
-        else:
-            self._root = self._delete(self._root, val, set(key))
+        self._root = self._delete(self._root, val, key)
     
     def to_list(self):
         lst = []

@@ -563,7 +563,7 @@ class Table:
             sort_b = b
             if condition[2] not in other._indexed_cols:
                 sort_b *= math.log2(b)
-            if a * b > 5*(10**7):
+            if a * b > 5*(10**10):
                 mode = self.JOIN_EXTERNALMERGE
             elif a * b >= sort_a + sort_b + a + b:
                 mode = self.JOIN_MERGEJOIN
